@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { BackToTop } from "@/components/ui/back-to-top";
 import VideoCompressor from "./pages/VideoCompressor";
 import VideoRepair from "./pages/VideoRepair";
@@ -19,8 +20,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
           <Route path="/" element={<VideoCompressor />} />
           <Route path="/repair" element={<VideoRepair />} />
           <Route path="/history" element={<History />} />
@@ -29,9 +31,10 @@ const App = () => (
           <Route path="/about" element={<About />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
-        <BackToTop />
-      </BrowserRouter>
+          </Routes>
+          <BackToTop />
+        </BrowserRouter>
+      </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
