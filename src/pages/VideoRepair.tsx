@@ -347,7 +347,10 @@ function VideoRepairContent() {
               <CardContent>
                 <div className="space-y-4">
                   {selectedFiles.map((file, index) => (
-                    <div key={index} className="border rounded-lg p-4">
+                    <div
+                      key={`${file.name}-${file.lastModified}`}
+                      className="border rounded-lg p-4"
+                    >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">{file.name}</span>
                         <span className="text-sm text-muted-foreground">
