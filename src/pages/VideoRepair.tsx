@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { VideoCompressorSidebar } from "@/components/video-compressor/VideoCompressorSidebar";
 import { DropZone } from "@/components/video-compressor/DropZone";
 import { VideoPreview } from "@/components/video-compressor/VideoPreview";
@@ -47,6 +47,23 @@ function VideoRepairContent() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [repairJobs, setRepairJobs] = useState<RepairJob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const progressIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      progressIntervalsRef.current.forEach((interval) => clearInterval(interval));
+      progressIntervalsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const hasActiveJobs = repairJobs.some(
+      job => job.status === 'analyzing' || job.status === 'repairing' || job.status === 'waiting'
+    );
+    if (!hasActiveJobs) {
+      setIsProcessing(false);
+    }
+  }, [repairJobs]);
   type RepairType = 'metadata' | 'container' | 'full' | 'extract';
   const [selectedRepairType, setSelectedRepairType] = useState<RepairType>('metadata');
 
@@ -98,10 +115,11 @@ function VideoRepairContent() {
         const updated = prev.map(job => {
           if (job.id === jobId && job.status === 'repairing') {
             const newProgress = Math.min(job.progress + Math.random() * 40 + 20, 100); // Faster progress
-            
+
             if (newProgress >= 100) {
               clearInterval(progressInterval);
-              
+              progressIntervalsRef.current.delete(jobId);
+
               // Simulate repair completion
               setTimeout(async () => {
                 try {
@@ -148,6 +166,7 @@ function VideoRepairContent() {
         return updated;
       });
     }, 100); // Faster interval
+    progressIntervalsRef.current.set(jobId, progressInterval);
   }, [repairJobs, analyzeVideoFile, toast]);
 
   const handleStartRepair = useCallback(() => {
@@ -193,6 +212,11 @@ function VideoRepairContent() {
   }, [selectedFiles, selectedRepairType, toast, startRepairJob]);
 
   const handleCancelJob = useCallback((jobId: string) => {
+    const interval = progressIntervalsRef.current.get(jobId);
+    if (interval) {
+      clearInterval(interval);
+      progressIntervalsRef.current.delete(jobId);
+    }
     setRepairJobs(prev => prev.map(job =>
       job.id === jobId ? { ...job, status: 'cancelled' as const } : job
     ));
