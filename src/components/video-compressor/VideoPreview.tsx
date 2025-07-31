@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,16 +61,18 @@ export function VideoPreview({
     };
   }, [originalFile, compressedBlob]);
 
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
     }
-  };
+  }, []);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -90,30 +92,30 @@ export function VideoPreview({
     }
   };
 
-  const seekTo = (time: number) => {
+  const seekTo = useCallback((time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
     }
-  };
+  }, []);
 
-  const skipForward = () => {
+  const skipForward = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 10, duration);
     }
-  };
+  }, [duration]);
 
-  const skipBackward = () => {
+  const skipBackward = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0);
     }
-  };
+  }, []);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.muted = !videoRef.current.muted;
       setIsMuted(videoRef.current.muted);
     }
-  };
+  }, []);
 
   // Keyboard controls
   React.useEffect(() => {
@@ -151,7 +153,7 @@ export function VideoPreview({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [duration, skipForward, togglePlay, skipBackward, seekTo, toggleMute]);
+  }, [duration, skipForward, skipBackward, togglePlay, seekTo, toggleMute]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
