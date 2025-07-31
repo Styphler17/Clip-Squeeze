@@ -1,4 +1,4 @@
-import { FaPlay, FaHistory, FaQuestionCircle, FaInfoCircle, FaCog, FaTools, FaWrench } from 'react-icons/fa';
+import { FaPlay, FaHistory, FaQuestionCircle, FaInfoCircle, FaCog, FaWrench } from 'react-icons/fa';
 import { NavLink } from "react-router-dom";
 import React from 'react';
 
