@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { VideoCompressorSidebar } from "@/components/video-compressor/VideoCompressorSidebar";
 import { DropZone } from "@/components/video-compressor/DropZone";
 import { CompressionSettings, COMPRESSION_PRESETS } from "@/components/video-compressor/CompressionSettings";
@@ -24,6 +24,23 @@ function VideoCompressorContent() {
   });
   const [compressionJobs, setCompressionJobs] = useState<CompressionJob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const progressIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      progressIntervalsRef.current.forEach((interval) => clearInterval(interval));
+      progressIntervalsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const hasActiveJobs = compressionJobs.some(
+      job => job.status === 'processing' || job.status === 'waiting'
+    );
+    if (!hasActiveJobs) {
+      setIsProcessing(false);
+    }
+  }, [compressionJobs]);
 
   const handleFilesSelected = useCallback((files: File[]) => {
     setSelectedFiles(prev => [...prev, ...files]);
@@ -34,12 +51,12 @@ function VideoCompressorContent() {
   }, [toast]);
 
   const startJobProcessing = useCallback(async (jobId: string) => {
-    setCompressionJobs(prev => prev.map(job => 
-      job.id === jobId 
+    setCompressionJobs(prev => prev.map(job =>
+      job.id === jobId
         ? { ...job, status: 'processing' as const, startTime: Date.now() }
         : job
     ));
-    
+
     const progressInterval = setInterval(() => {
       setCompressionJobs(prev => {
         const updated = prev.map(job => {
@@ -47,6 +64,7 @@ function VideoCompressorContent() {
             const newProgress = Math.min(job.progress + Math.random() * 10, 100);
             if (newProgress >= 100) {
               clearInterval(progressInterval);
+              progressIntervalsRef.current.delete(jobId);
               (async () => {
                 try {
                   if (!job.file) throw new Error("No file found for this job.");
@@ -123,6 +141,7 @@ function VideoCompressorContent() {
         return updated;
       });
     }, 200);
+    progressIntervalsRef.current.set(jobId, progressInterval);
   }, [toast]);
 
   const simulateCompression = useCallback((jobs: CompressionJob[]) => {
@@ -176,6 +195,11 @@ function VideoCompressorContent() {
   }, [selectedFiles, selectedPreset, customSettings, toast, simulateCompression]);
 
   const handleCancelJob = useCallback((jobId: string) => {
+    const interval = progressIntervalsRef.current.get(jobId);
+    if (interval) {
+      clearInterval(interval);
+      progressIntervalsRef.current.delete(jobId);
+    }
     setCompressionJobs(prev => prev.map(job =>
       job.id === jobId ? { ...job, status: 'cancelled' as const } : job
     ));
