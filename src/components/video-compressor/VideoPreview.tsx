@@ -179,6 +179,7 @@ export function VideoPreview({
           </div>
           {compressedBlob && (
             <Button
+              aria-label="Download compressed video"
               onClick={onDownload}
               size="sm"
               className="bg-video-success hover:bg-video-success/90"
@@ -212,6 +213,7 @@ export function VideoPreview({
           <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
             <div className="flex items-center gap-4">
               <Button
+                aria-label={isPlaying ? 'Pause video' : 'Play video'}
                 onClick={togglePlay}
                 variant="secondary"
                 size="lg"
@@ -223,6 +225,7 @@ export function VideoPreview({
               <Dialog>
                 <DialogTrigger asChild>
                   <Button
+                    aria-label="Enter fullscreen mode"
                     variant="secondary"
                     size="lg"
                     className="bg-white/90 hover:bg-white text-black"
@@ -259,6 +262,7 @@ export function VideoPreview({
             </div>
             <div className="flex items-center gap-2">
               <Button
+                aria-label="Skip backward 10 seconds"
                 variant="outline"
                 size="sm"
                 onClick={skipBackward}
@@ -268,6 +272,7 @@ export function VideoPreview({
                 -10s
               </Button>
               <Button
+                aria-label={isPlaying ? 'Pause video' : 'Play video'}
                 variant="outline"
                 size="sm"
                 onClick={togglePlay}
@@ -277,6 +282,7 @@ export function VideoPreview({
                 {isPlaying ? 'Pause' : 'Play'}
               </Button>
               <Button
+                aria-label="Skip forward 10 seconds"
                 variant="outline"
                 size="sm"
                 onClick={skipForward}
@@ -286,6 +292,7 @@ export function VideoPreview({
                 +10s
               </Button>
               <Button
+                aria-label={isMuted ? 'Unmute video' : 'Mute video'}
                 variant="outline"
                 size="sm"
                 onClick={toggleMute}
@@ -305,6 +312,7 @@ export function VideoPreview({
         {compressedBlob && (
           <div className="flex gap-2">
             <Button
+              aria-label="Show original video"
               variant={currentVideo === 'original' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setCurrentVideo('original')}
@@ -313,6 +321,7 @@ export function VideoPreview({
               Original
             </Button>
             <Button
+              aria-label="Show compressed video"
               variant={currentVideo === 'compressed' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setCurrentVideo('compressed')}
