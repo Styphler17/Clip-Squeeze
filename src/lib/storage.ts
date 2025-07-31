@@ -34,6 +34,8 @@ const STORAGE_KEYS = {
   APP_SETTINGS: 'clipsqueeze-settings',
 } as const;
 
+import { sanitizeForCSV } from './utils';
+
 // History Management
 export const getCompressionHistory = (): CompressionHistoryItem[] => {
   try {
@@ -76,14 +78,14 @@ export const exportHistory = (): void => {
   const csvContent = [
     ['File Name', 'Original Size (MB)', 'Compressed Size (MB)', 'Compression Ratio (%)', 'Preset', 'Date', 'Time', 'Status'],
     ...history.map(item => [
-      item.fileName,
+      sanitizeForCSV(item.fileName),
       (item.originalSize / (1024 * 1024)).toFixed(2),
       (item.compressedSize / (1024 * 1024)).toFixed(2),
       item.compressionRatio.toFixed(1),
-      item.preset,
-      item.date,
-      item.time,
-      item.status
+      sanitizeForCSV(item.preset),
+      sanitizeForCSV(item.date),
+      sanitizeForCSV(item.time),
+      sanitizeForCSV(item.status)
     ])
   ].map(row => row.join(',')).join('\n');
 
