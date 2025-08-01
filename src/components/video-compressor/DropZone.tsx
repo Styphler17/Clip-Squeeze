@@ -33,7 +33,7 @@ export function DropZone({
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
-  const validateFiles = (files: FileList): { valid: File[], errors: string[] } => {
+  const validateFiles = useCallback((files: FileList): { valid: File[]; errors: string[] } => {
     const validFiles: File[] = [];
     const newErrors: string[] = [];
 
@@ -62,7 +62,7 @@ export function DropZone({
     }
 
     return { valid: validFiles, errors: newErrors };
-  };
+  }, [maxFiles, maxFileSize]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -89,7 +89,7 @@ export function DropZone({
         onFilesSelected(valid);
       }
     }
-  }, [onFilesSelected, disabled, maxFiles, maxFileSize, validateFiles]);
+  }, [onFilesSelected, disabled, validateFiles]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -102,7 +102,7 @@ export function DropZone({
     }
     // Reset input value to allow selecting the same files again
     e.target.value = '';
-  }, [onFilesSelected, maxFiles, maxFileSize, validateFiles]);
+  }, [onFilesSelected, validateFiles]);
 
   return (
     <div className={cn("w-full", className)}>
