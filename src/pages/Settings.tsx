@@ -9,7 +9,7 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { VideoCompressorSidebar } from "@/components/video-compressor/VideoCompressorSidebar";
 import { useToast } from "@/hooks/use-toast";
 import { getAppSettings, saveAppSettings, clearHistory, exportHistory, getCompressionHistory } from "@/lib/storage";
-import { COMPRESSION_PRESETS } from "@/components/video-compressor/CompressionSettings";
+import { COMPRESSION_PRESETS } from "@/lib/constants";
 
 function SettingsPageContent() {
   const { toggleSidebar } = useSidebar();

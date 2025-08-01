@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { FaPlay, FaHistory, FaQuestionCircle, FaInfoCircle, FaCog, FaWrench } from 'react-icons/fa';
 import { NavLink } from "react-router-dom";
+=======
+import { FaPlay, FaHistory, FaQuestionCircle, FaInfoCircle, FaCog, FaTools, FaWrench } from 'react-icons/fa';
+import { NavLink, useNavigate } from "react-router-dom";
+>>>>>>> 6f15866 (latest fixes)
 import React from 'react';
 
 import {
@@ -56,6 +61,7 @@ const navigationItems = [
 export function VideoCompressorSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const navigate = useNavigate();
 
   return (
     <Sidebar 
@@ -64,10 +70,13 @@ export function VideoCompressorSidebar() {
     >
       <SidebarContent className="h-full flex flex-col">
         {/* Logo Section */}
-        <div className="p-6 border-b border-gray-700 flex items-center justify-center">
+        <div 
+          className="p-6 border-b border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+          onClick={() => navigate('/')}
+        >
           <img src="/logo.png" alt="ClipSqueeze" className="w-12 h-12 rounded-full shadow-lg" />
           {!isCollapsed && (
-            <span className="ml-3 text-2xl font-bold tracking-tight text-white">ClipSqueeze</span>
+            <span className="ml-3 text-2xl font-bold tracking-tight text-white hidden md:block">ClipSqueeze</span>
           )}
         </div>
 

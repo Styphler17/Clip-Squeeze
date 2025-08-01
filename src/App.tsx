@@ -5,13 +5,27 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { BackToTop } from "@/components/ui/back-to-top";
-import VideoCompressor from "./pages/VideoCompressor";
-import VideoRepair from "./pages/VideoRepair";
-import History from "./pages/History";
-import HowToUse from "./pages/HowToUse";
-import Settings from "./pages/Settings";
-import About from "./pages/About";
-import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Suspense, lazy } from "react";
+
+// Lazy load components for better performance
+const VideoCompressor = lazy(() => import("./pages/VideoCompressor"));
+const VideoRepair = lazy(() => import("./pages/VideoRepair"));
+const History = lazy(() => import("./pages/History"));
+const HowToUse = lazy(() => import("./pages/HowToUse"));
+const Settings = lazy(() => import("./pages/Settings"));
+const About = lazy(() => import("./pages/About"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Loading component for Suspense fallback
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-video-primary mx-auto mb-4"></div>
+      <p className="text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -20,6 +34,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+<<<<<<< HEAD
       <ErrorBoundary>
         <BrowserRouter>
           <Routes>
@@ -35,6 +50,25 @@ const App = () => (
           <BackToTop />
         </BrowserRouter>
       </ErrorBoundary>
+=======
+      <BrowserRouter>
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route path="/" element={<VideoCompressor />} />
+              <Route path="/repair" element={<VideoRepair />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/guide" element={<HowToUse />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/about" element={<About />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+          <BackToTop />
+        </ErrorBoundary>
+      </BrowserRouter>
+>>>>>>> 6f15866 (latest fixes)
     </TooltipProvider>
   </QueryClientProvider>
 );

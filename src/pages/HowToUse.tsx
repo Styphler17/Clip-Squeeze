@@ -166,7 +166,7 @@ function HowToUseContent() {
                 <p className="text-muted-foreground mb-4">{step.description}</p>
                 <div className="space-y-2">
                   {step.tips.map((tip, index) => (
-                    <div key={index} className="flex items-start gap-2">
+                    <div key={`${step.step}-tip-${index}`} className="flex items-start gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-video-primary mt-2 flex-shrink-0" />
                       <span className="text-sm text-muted-foreground">{tip}</span>
                     </div>
@@ -212,7 +212,7 @@ function HowToUseContent() {
         <h2 className="text-2xl font-semibold mb-6">Pro Tips & Best Practices</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {tips.map((tip, index) => (
-            <Card key={index}>
+            <Card key={`tip-${tip.title}-${index}`}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <tip.icon className="w-5 h-5 text-video-primary" />

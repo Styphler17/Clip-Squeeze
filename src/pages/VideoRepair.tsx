@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { VideoCompressorSidebar } from "@/components/video-compressor/VideoCompressorSidebar";
+import { VideoRepairSEO } from "@/components/SEO";
 import { DropZone } from "@/components/video-compressor/DropZone";
 import { VideoPreview } from "@/components/video-compressor/VideoPreview";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -16,7 +17,11 @@ import {
   Clock, 
   Download,
   RotateCcw,
+<<<<<<< HEAD
   FileVideo,
+=======
+  FileVideo
+>>>>>>> 6f15866 (latest fixes)
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -116,6 +121,7 @@ function VideoRepairContent() {
             const newProgress = Math.min(job.progress + Math.random() * 40 + 20, 100); // Faster progress
 
             if (newProgress >= 100) {
+              // Clear the interval immediately to prevent memory leaks
               clearInterval(progressInterval);
               progressIntervalsRef.current.delete(jobId);
 
@@ -165,7 +171,13 @@ function VideoRepairContent() {
         return updated;
       });
     }, 100); // Faster interval
+<<<<<<< HEAD
     progressIntervalsRef.current.set(jobId, progressInterval);
+=======
+
+    // Store the interval ID for cleanup
+    return progressInterval;
+>>>>>>> 6f15866 (latest fixes)
   }, [repairJobs, analyzeVideoFile, toast]);
 
   const handleStartRepair = useCallback(() => {
@@ -197,12 +209,19 @@ function VideoRepairContent() {
     setSelectedFiles([]);
     setIsProcessing(true);
     
-    // Start processing jobs with delays
+    // Start processing jobs with delays and track timeouts for cleanup
+    const timeouts: NodeJS.Timeout[] = [];
     newJobs.forEach((job, index) => {
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         startRepairJob(job.id);
       }, index * 2000);
+      timeouts.push(timeout);
     });
+    
+    // Store timeouts for potential cleanup
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
     
     toast({
       title: "Repair Started",
@@ -240,10 +259,22 @@ function VideoRepairContent() {
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        setTimeout(() => {
+        
+        // Cleanup with proper timeout management
+        const cleanupTimeout = setTimeout(() => {
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
         }, 100);
+        
+        // Store timeout for potential cleanup
+        return () => {
+          clearTimeout(cleanupTimeout);
+          if (document.body.contains(a)) {
+            document.body.removeChild(a);
+          }
+          URL.revokeObjectURL(url);
+        };
+        
         toast({
           title: "Download Started",
           description: `Downloading repaired ${filename}`,
@@ -262,9 +293,14 @@ function VideoRepairContent() {
     setRepairJobs(prev => prev.map(job =>
       job.id === jobId ? { ...job, status: 'waiting' as const, progress: 0, error: undefined } : job
     ));
-    setTimeout(() => {
+    
+    const retryTimeout = setTimeout(() => {
       startRepairJob(jobId);
     }, 1000);
+    
+    // Return cleanup function
+    return () => clearTimeout(retryTimeout);
+    
     toast({
       title: "Retrying",
       description: "Retrying repair job...",
@@ -298,31 +334,33 @@ function VideoRepairContent() {
   };
 
   return (
-    <div className="flex-1 p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Video Repair</h1>
-          <p className="text-muted-foreground">
-            Fix corrupted videos, metadata issues, and playback problems
-          </p>
+    <div className="flex-1 p-4 lg:p-6 space-y-6 overflow-x-hidden">
+      {/* Fixed Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b pb-2 lg:pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Video Repair</h1>
+            <p className="text-muted-foreground">
+              Fix corrupted videos, metadata issues, and playback problems
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSidebar}
+            className="lg:hidden"
+          >
+            <Menu className="w-4 h-4" />
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleSidebar}
-          className="lg:hidden"
-        >
-          <Menu className="w-4 h-4" />
-        </Button>
-      </div>
 
-      {/* Topbar */}
-      <div className="flex items-center gap-4 mb-6">
+        {/* Topbar */}
+        <div className="flex flex-wrap items-center gap-4 mt-4">
         <Button
           onClick={handleStartRepair}
           disabled={selectedFiles.length === 0 || isProcessing}
           size="lg"
+          className={selectedFiles.length > 0 ? "bg-red-500 hover:bg-red-600" : ""}
         >
           <Wrench className="w-4 h-4 mr-2" />
           Start Repair
@@ -338,7 +376,7 @@ function VideoRepairContent() {
           {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
         </span>
       </div>
-
+      </div>
       {/* Main Content */}
       <div className="grid gap-6 lg:grid-cols-4">
         {/* Left Column - File Upload, Progress Tracking, and Previews */}
@@ -370,13 +408,17 @@ function VideoRepairContent() {
               <CardContent>
                 <div className="space-y-4">
                   {selectedFiles.map((file, index) => (
+<<<<<<< HEAD
                     <div
                       key={`${file.name}-${file.lastModified}`}
                       className="border rounded-lg p-4"
                     >
+=======
+                    <div key={`${file.name}-${file.size}-${index}`} className="border rounded-lg p-4">
+>>>>>>> 6f15866 (latest fixes)
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{file.name}</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="font-medium text-xs lg:text-base truncate max-w-[50%]">{file.name}</span>
+                        <span className="text-xs lg:text-sm text-muted-foreground flex-shrink-0">
                           {(file.size / (1024 * 1024)).toFixed(2)} MB
                         </span>
                       </div>
@@ -433,6 +475,7 @@ function VideoRepairContent() {
                               <Button
                                 size="sm"
                                 onClick={() => handleDownload(job.id)}
+                                className="bg-yellow-500 hover:bg-yellow-600 text-white"
                               >
                                 <Download className="w-4 h-4 mr-1" />
                                 Download
@@ -597,6 +640,7 @@ function VideoRepairContent() {
 export default function VideoRepair() {
   return (
     <SidebarProvider>
+      <VideoRepairSEO />
       <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
         <VideoRepairContent />

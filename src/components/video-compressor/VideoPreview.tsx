@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useState, useRef, useCallback } from "react";
+=======
+import React, { useState, useRef, useCallback, memo } from "react";
+>>>>>>> 6f15866 (latest fixes)
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,13 +30,13 @@ interface VideoPreviewProps {
   onDownload: () => void;
 }
 
-export function VideoPreview({ 
+export const VideoPreview = memo(({ 
   originalFile, 
   compressedBlob, 
   originalSize, 
   compressedSize,
   onDownload 
-}: VideoPreviewProps) {
+}: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<'original' | 'compressed'>('compressed');
   const [currentTime, setCurrentTime] = useState(0);
@@ -47,21 +51,23 @@ export function VideoPreview({
     const newOriginalUrl = URL.createObjectURL(originalFile);
     setOriginalUrl(newOriginalUrl);
 
+    let newCompressedUrl: string | undefined;
     if (compressedBlob) {
-      const newCompressedUrl = URL.createObjectURL(compressedBlob);
+      newCompressedUrl = URL.createObjectURL(compressedBlob);
       setCompressedUrl(newCompressedUrl);
     }
 
     // Cleanup URLs when component unmounts or when files change
     return () => {
       URL.revokeObjectURL(newOriginalUrl);
-      if (compressedBlob) {
-        URL.revokeObjectURL(compressedUrl);
+      if (newCompressedUrl) {
+        URL.revokeObjectURL(newCompressedUrl);
       }
     };
   }, [originalFile, compressedBlob]);
 
   const togglePlay = useCallback(() => {
+<<<<<<< HEAD
     const video = videoRef.current;
     if (!video) return;
 
@@ -73,24 +79,35 @@ export function VideoPreview({
       setIsPlaying(false);
     }
   }, []);
+=======
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  }, [isPlaying]);
+>>>>>>> 6f15866 (latest fixes)
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
     }
-  };
+  }, []);
 
-  const handleLoadedMetadata = () => {
+  const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
     }
-  };
+  }, []);
 
-  const handleVolumeChange = () => {
+  const handleVolumeChange = useCallback(() => {
     if (videoRef.current) {
       setIsMuted(videoRef.current.muted);
     }
-  };
+  }, []);
 
   const seekTo = useCallback((time: number) => {
     if (videoRef.current) {
@@ -184,7 +201,7 @@ export function VideoPreview({
               aria-label="Download compressed video"
               onClick={onDownload}
               size="sm"
-              className="bg-video-success hover:bg-video-success/90"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
             >
               <FontAwesomeIcon icon={faDownload} className="mr-2" />
               Download
@@ -195,20 +212,32 @@ export function VideoPreview({
       
       <CardContent className="space-y-4">
         {/* Video Player */}
-        <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+        <div className="relative bg-black rounded-lg overflow-hidden aspect-video max-h-[40vh] sm:max-h-[50vh] lg:max-h-none">
           {originalUrl && (
-                      <video
-            ref={videoRef}
-            src={currentVideo === 'original' ? originalUrl : compressedUrl || originalUrl}
-            className="w-full h-full object-contain"
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onVolumeChange={handleVolumeChange}
-            controls={true}
-            key={`${currentVideo}-${originalUrl}`}
-          />
+            <video
+              ref={videoRef}
+              src={currentVideo === 'original' ? originalUrl : compressedUrl || originalUrl}
+              className="w-full h-full object-contain"
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onVolumeChange={handleVolumeChange}
+              onError={(e) => {
+                console.error('Video playback error:', e);
+                // Fallback to original video if compressed video fails
+                if (currentVideo === 'compressed' && compressedUrl) {
+                  setCurrentVideo('original');
+                }
+              }}
+              controls={true}
+              playsInline={true}
+              preload="metadata"
+              crossOrigin="anonymous"
+              key={`${currentVideo}-${originalUrl}`}
+              aria-label={`Video player for ${originalFile.name}`}
+              title={originalFile.name}
+            />
           )}
           
           {/* Video Controls Overlay */}
@@ -220,6 +249,7 @@ export function VideoPreview({
                 variant="secondary"
                 size="lg"
                 className="bg-white/90 hover:bg-white text-black"
+                aria-label={isPlaying ? "Pause video" : "Play video"}
               >
                 <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
               </Button>
@@ -231,6 +261,7 @@ export function VideoPreview({
                     variant="secondary"
                     size="lg"
                     className="bg-white/90 hover:bg-white text-black"
+                    aria-label="Open video in fullscreen"
                   >
                     <FontAwesomeIcon icon={faExpand} />
                   </Button>
@@ -269,6 +300,7 @@ export function VideoPreview({
                 size="sm"
                 onClick={skipBackward}
                 className="flex-1"
+                aria-label="Skip backward 10 seconds"
               >
                 <FontAwesomeIcon icon={faBackward} className="mr-1" />
                 -10s
@@ -279,6 +311,7 @@ export function VideoPreview({
                 size="sm"
                 onClick={togglePlay}
                 className="flex-1"
+                aria-label={isPlaying ? "Pause video" : "Play video"}
               >
                 <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="mr-1" />
                 {isPlaying ? 'Pause' : 'Play'}
@@ -289,6 +322,7 @@ export function VideoPreview({
                 size="sm"
                 onClick={skipForward}
                 className="flex-1"
+                aria-label="Skip forward 10 seconds"
               >
                 <FontAwesomeIcon icon={faForward} className="mr-1" />
                 +10s
@@ -299,6 +333,7 @@ export function VideoPreview({
                 size="sm"
                 onClick={toggleMute}
                 className="flex-1"
+                aria-label={isMuted ? "Unmute video" : "Mute video"}
               >
                 <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} className="mr-1" />
                 {isMuted ? 'Unmute' : 'Mute'}
@@ -389,4 +424,8 @@ export function VideoPreview({
       </CardContent>
     </Card>
   );
+<<<<<<< HEAD
 }
+=======
+});
+>>>>>>> 6f15866 (latest fixes)

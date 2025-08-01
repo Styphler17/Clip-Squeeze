@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { VideoCompressorSidebar } from "@/components/video-compressor/VideoCompressorSidebar";
+import { VideoCompressorSEO } from "@/components/SEO";
 import { DropZone } from "@/components/video-compressor/DropZone";
-import { CompressionSettings, COMPRESSION_PRESETS } from "@/components/video-compressor/CompressionSettings";
+import { CompressionSettings } from "@/components/video-compressor/CompressionSettings";
+import { COMPRESSION_PRESETS } from "@/lib/constants";
 import { ProgressTracker, CompressionJob } from "@/components/video-compressor/ProgressTracker";
 import { VideoPreview } from "@/components/video-compressor/VideoPreview";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -63,8 +65,13 @@ function VideoCompressorContent() {
           if (job.id === jobId && job.status === 'processing') {
             const newProgress = Math.min(job.progress + Math.random() * 10, 100);
             if (newProgress >= 100) {
+              // Clear the interval immediately to prevent memory leaks
               clearInterval(progressInterval);
+<<<<<<< HEAD
               progressIntervalsRef.current.delete(jobId);
+=======
+              
+>>>>>>> 6f15866 (latest fixes)
               (async () => {
                 try {
                   if (!job.file) throw new Error("No file found for this job.");
@@ -141,15 +148,37 @@ function VideoCompressorContent() {
         return updated;
       });
     }, 200);
+<<<<<<< HEAD
     progressIntervalsRef.current.set(jobId, progressInterval);
+=======
+
+    // Store the interval ID for cleanup
+    return progressInterval;
+>>>>>>> 6f15866 (latest fixes)
   }, [toast]);
 
   const simulateCompression = useCallback((jobs: CompressionJob[]) => {
+    const intervals: NodeJS.Timeout[] = [];
+    
     jobs.forEach((job, index) => {
-      setTimeout(() => {
-        startJobProcessing(job.id);
+      const interval = setTimeout(() => {
+        startJobProcessing(job.id).then(intervalId => {
+          if (intervalId) {
+            intervals.push(intervalId);
+          }
+        });
       }, index * 1000);
+      
+      intervals.push(interval);
     });
+
+    // Return cleanup function
+    return () => {
+      intervals.forEach(interval => {
+        clearTimeout(interval);
+        clearInterval(interval);
+      });
+    };
   }, [startJobProcessing]);
 
   const handleStartCompression = useCallback(() => {
@@ -262,35 +291,37 @@ function VideoCompressorContent() {
   }, [startJobProcessing, toast]);
 
   return (
-    <div className="flex-1 p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Video Compressor</h1>
-          <p className="text-muted-foreground">
-            Compress your videos to save space while maintaining quality
-          </p>
+    <div className="flex-1 p-4 lg:p-6 space-y-6 overflow-x-hidden">
+      {/* Fixed Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b pb-2 lg:pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Video Compressor</h1>
+            <p className="text-muted-foreground">
+              Compress your videos to save space while maintaining quality
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSidebar}
+            className="lg:hidden"
+          >
+            <Menu className="w-4 h-4" />
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleSidebar}
-          className="lg:hidden"
-        >
-          <Menu className="w-4 h-4" />
-        </Button>
-      </div>
 
-      {/* Topbar with Start Compression and Clear Files */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button
-          onClick={handleStartCompression}
-          disabled={selectedFiles.length === 0 || isProcessing}
-          size="lg"
-        >
-          <Zap className="w-4 h-4 mr-2" />
-          Start Compression
-        </Button>
+        {/* Topbar with Start Compression and Clear Files */}
+        <div className="flex flex-wrap items-center gap-4 mt-4">
+          <Button
+            onClick={handleStartCompression}
+            disabled={selectedFiles.length === 0 || isProcessing}
+            size="lg"
+            className={selectedFiles.length > 0 ? "bg-red-500 hover:bg-red-600" : ""}
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            Start Compression
+          </Button>
         <Button
           variant="outline"
           onClick={() => {
@@ -304,6 +335,7 @@ function VideoCompressorContent() {
         <span className="ml-2 text-muted-foreground text-sm">
           {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
         </span>
+      </div>
       </div>
       {/* Main Content */}
       <div className="grid gap-6 lg:grid-cols-4">
@@ -341,8 +373,8 @@ function VideoCompressorContent() {
                       className="border rounded-lg p-4"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{file.name}</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="font-medium text-xs lg:text-base truncate max-w-[50%]">{file.name}</span>
+                        <span className="text-xs lg:text-sm text-muted-foreground flex-shrink-0">
                           {(file.size / (1024 * 1024)).toFixed(2)} MB
                         </span>
                       </div>
@@ -393,6 +425,7 @@ function VideoCompressorContent() {
 export default function VideoCompressor() {
   return (
     <SidebarProvider>
+      <VideoCompressorSEO />
       <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
         <VideoCompressorContent />

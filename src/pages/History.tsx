@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, Download, Trash2, Calendar, FileVideo, Clock, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,8 +45,11 @@ function HistoryContent() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const filteredHistory = history.filter(item =>
-    item.fileName.toLowerCase().includes(searchTerm.toLowerCase())
+  // Memoize filtered history to prevent unnecessary recalculations
+  const filteredHistory = useMemo(() => 
+    history.filter(item =>
+      item.fileName.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [history, searchTerm]
   );
 
   const handleClearHistory = () => {
