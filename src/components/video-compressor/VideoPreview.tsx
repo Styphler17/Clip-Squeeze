@@ -47,16 +47,17 @@ export function VideoPreview({
     const newOriginalUrl = URL.createObjectURL(originalFile);
     setOriginalUrl(newOriginalUrl);
 
+    let newCompressedUrl: string | undefined;
     if (compressedBlob) {
-      const newCompressedUrl = URL.createObjectURL(compressedBlob);
+      newCompressedUrl = URL.createObjectURL(compressedBlob);
       setCompressedUrl(newCompressedUrl);
     }
 
     // Cleanup URLs when component unmounts or when files change
     return () => {
       URL.revokeObjectURL(newOriginalUrl);
-      if (compressedBlob) {
-        URL.revokeObjectURL(compressedUrl);
+      if (newCompressedUrl) {
+        URL.revokeObjectURL(newCompressedUrl);
       }
     };
   }, [originalFile, compressedBlob]);

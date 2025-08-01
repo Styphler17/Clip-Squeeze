@@ -27,9 +27,10 @@ function VideoCompressorContent() {
   const progressIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
+    const intervals = progressIntervalsRef.current;
     return () => {
-      progressIntervalsRef.current.forEach((interval) => clearInterval(interval));
-      progressIntervalsRef.current.clear();
+      intervals.forEach((interval) => clearInterval(interval));
+      intervals.clear();
     };
   }, []);
 
