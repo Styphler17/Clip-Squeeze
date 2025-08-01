@@ -369,7 +369,7 @@ function VideoRepairContent() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {selectedFiles.map((file, index) => (
+                  {selectedFiles.map((file) => (
                     <div
                       key={`${file.name}-${file.lastModified}`}
                       className="border rounded-lg p-4"
