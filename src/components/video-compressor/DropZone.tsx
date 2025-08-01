@@ -33,36 +33,41 @@ export function DropZone({
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
-  const validateFiles = useCallback((files: FileList): { valid: File[]; errors: string[] } => {
-    const validFiles: File[] = [];
-    const newErrors: string[] = [];
+  const validateFiles = useCallback(
+    (files: FileList): { valid: File[]; errors: string[] } => {
+      const validFiles: File[] = [];
+      const newErrors: string[] = [];
 
-    Array.from(files).forEach((file) => {
-      // Check file type
-      if (!SUPPORTED_FORMATS.includes(file.type) && !file.name.match(/\.(mp4|avi|mov|mkv|wmv|flv|webm|3gp|ogv|m4v|qt)$/i)) {
-        newErrors.push(`${file.name}: Unsupported format`);
-        return;
-      }
+      Array.from(files).forEach((file) => {
+        // Check file type
+        if (
+          !SUPPORTED_FORMATS.includes(file.type) &&
+          !file.name.match(/\.(mp4|avi|mov|mkv|wmv|flv|webm|3gp|ogv|m4v|qt)$/i)
+        ) {
+          newErrors.push(`${file.name}: Unsupported format`);
+          return;
+        }
 
-      // Check file size
-      if (file.size > maxFileSize) {
-        const sizeMB = Math.round(file.size / (1024 * 1024));
-        const maxSizeMB = Math.round(maxFileSize / (1024 * 1024));
-        newErrors.push(`${file.name}: File too large (${sizeMB}MB > ${maxSizeMB}MB)`);
-        return;
-      }
+        // Check file size
+        if (file.size > maxFileSize) {
+          const sizeMB = Math.round(file.size / (1024 * 1024));
+          const maxSizeMB = Math.round(maxFileSize / (1024 * 1024));
+          newErrors.push(`${file.name}: File too large (${sizeMB}MB > ${maxSizeMB}MB)`);
+          return;
+        }
 
-      validFiles.push(file);
-    });
+        if (validFiles.length >= maxFiles) {
+          newErrors.push(`Maximum of ${maxFiles} files allowed. Extra files were ignored.`);
+          return;
+        }
 
-    // Check total file count
-    if (validFiles.length > maxFiles) {
-      newErrors.push(`Too many files selected. Maximum ${maxFiles} files allowed.`);
-      return { valid: [], errors: newErrors };
-    }
+        validFiles.push(file);
+      });
 
-    return { valid: validFiles, errors: newErrors };
-  }, [maxFiles, maxFileSize]);
+      return { valid: validFiles, errors: newErrors };
+    },
+    [maxFiles, maxFileSize]
+  );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
