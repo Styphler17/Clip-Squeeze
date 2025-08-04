@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-import { FaPlay, FaHistory, FaQuestionCircle, FaInfoCircle, FaCog, FaWrench } from 'react-icons/fa';
-import { NavLink } from "react-router-dom";
-=======
 import { FaPlay, FaHistory, FaQuestionCircle, FaInfoCircle, FaCog, FaTools, FaWrench } from 'react-icons/fa';
 import { NavLink, useNavigate } from "react-router-dom";
->>>>>>> 6f15866 (latest fixes)
 import React from 'react';
 
 import {

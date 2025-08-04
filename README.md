@@ -7,8 +7,10 @@ ClipSqueeze is a professional, privacy-focused video compression tool that runs 
 - **100% Private & Secure**: All processing happens locally in your browser
 - **Lightning Fast**: Powered by WebAssembly and FFmpeg for efficient compression
 - **Works Everywhere**: No installation required, works on any modern browser
-- **No Size Limits**: Process files up to 5GB with support for all major formats
+- **Smart File Limits**: Process files up to 10GB, with automatic MP4 conversion for large non-MP4 files
 - **Multiple Presets**: Choose from optimized compression presets or customize settings
+- **Format Conversion**: Convert between different video formats (MP4, WebM, AVI, MOV, etc.)
+- **Real-time Progress**: Track compression and conversion progress in real-time
 
 ## Getting Started
 

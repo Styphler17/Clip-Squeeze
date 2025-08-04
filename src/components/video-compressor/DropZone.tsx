@@ -1,7 +1,10 @@
 import { useCallback, useState, memo } from "react";
-import { Upload, FileVideo, AlertCircle, CheckCircle } from "lucide-react";
+import { Upload, FileVideo, AlertCircle, CheckCircle, Cloud, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SUPPORTED_VIDEO_FORMATS, FILE_SIZE_LIMITS } from "@/lib/constants";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { useRef } from "react";
+import { Badge } from "@/components/ui/badge";
 
 interface DropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -11,45 +14,6 @@ interface DropZoneProps {
   className?: string;
 }
 
-// File signatures for additional security validation
-const FILE_SIGNATURES = {
-  'mp4': [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70], // ftyp
-  'avi': [0x52, 0x49, 0x46, 0x46], // RIFF
-  'mov': [0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70], // ftyp
-  'mkv': [0x1A, 0x45, 0xDF, 0xA3], // EBML
-  'wmv': [0x30, 0x26, 0xB2, 0x75], // ASF
-  'flv': [0x46, 0x4C, 0x56, 0x01], // FLV
-  'webm': [0x1A, 0x45, 0xDF, 0xA3], // EBML (same as MKV)
-  '3gp': [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70], // ftyp
-  'ogv': [0x4F, 0x67, 0x67, 0x53], // OggS
-  'm4v': [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70], // ftyp
-  'qt': [0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70]  // ftyp
-};
-
-// Enhanced file validation with security checks
-const validateFileSignature = async (file: File): Promise<boolean> => {
-  try {
-    const buffer = await file.slice(0, 8).arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    
-    // Check against known file signatures
-    for (const [, signature] of Object.entries(FILE_SIGNATURES)) {
-      if (signature.every((byte, index) => bytes[index] === byte)) {
-        return true;
-      }
-    }
-    
-    // If no signature matches, check file extension as fallback
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    return extension ? Object.keys(FILE_SIGNATURES).includes(extension) : false;
-  } catch (error) {
-    console.warn('File signature validation failed:', error);
-    // Don't fail on signature validation - use extension as fallback
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    return extension ? Object.keys(FILE_SIGNATURES).includes(extension) : false;
-  }
-};
-
 export const DropZone = memo(({ 
   onFilesSelected, 
   maxFiles = 10, 
@@ -57,11 +21,16 @@ export const DropZone = memo(({
   disabled = false,
   className 
 }: DropZoneProps) => {
+  const isMobile = useIsMobile();
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [isValidating, setIsValidating] = useState(false);
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const validateFiles = useCallback(async (files: FileList): Promise<{ valid: File[], errors: string[] }> => {
+  const validateFiles = useCallback((files: FileList): { valid: File[], errors: string[] } => {
     const validFiles: File[] = [];
     const newErrors: string[] = [];
 
@@ -69,32 +38,46 @@ export const DropZone = memo(({
 
     try {
       for (const file of Array.from(files)) {
-        // Security: Check file name for potentially malicious patterns
+        // Basic file name validation
         const fileName = file.name.toLowerCase();
         if (fileName.includes('..') || fileName.includes('\\') || fileName.includes('/')) {
           newErrors.push(`${file.name}: Invalid file name`);
           continue;
         }
 
-        // Check file type - simplified validation
+        // More lenient file type validation for mobile
         const extension = file.name.split('.').pop()?.toLowerCase();
-        const isValidExtension = extension && /^(mp4|avi|mov|mkv|wmv|flv|webm|3gp|ogv|m4v|qt)$/i.test(extension);
-        const isValidMimeType = SUPPORTED_VIDEO_FORMATS.includes(file.type as typeof SUPPORTED_VIDEO_FORMATS[number]);
+        const hasVideoExtension = extension && /^(mp4|avi|mov|mkv|wmv|flv|webm|3gp|ogv|m4v|qt|m4a|mpg|mpeg|ts|mts|m2ts)$/i.test(extension);
+        const hasVideoMimeType = file.type.startsWith('video/') || 
+                                file.type === 'application/octet-stream' ||
+                                file.type === '' ||
+                                file.type === 'application/mp4' ||
+                                file.type === 'application/x-m4v' ||
+                                file.type === 'video/*';
         
-        if (!isValidMimeType && !isValidExtension) {
-          newErrors.push(`${file.name}: Unsupported format`);
-          continue;
+        // On mobile, be more lenient with file type validation
+        if (isMobile) {
+          // Accept files with video extensions or if they have a size > 1MB (likely video files)
+          if (!hasVideoExtension && !hasVideoMimeType && file.size < 1024 * 1024) {
+            newErrors.push(`${file.name}: Unsupported format`);
+            continue;
+          }
+        } else {
+          // Desktop validation - stricter
+          if (!hasVideoExtension && !hasVideoMimeType) {
+            newErrors.push(`${file.name}: Unsupported format`);
+            continue;
+          }
         }
 
         // Check file size
         if (file.size > maxFileSize) {
-          const sizeMB = Math.round(file.size / (1024 * 1024));
-          const maxSizeMB = Math.round(maxFileSize / (1024 * 1024));
-          newErrors.push(`${file.name}: File too large (${sizeMB}MB > ${maxSizeMB}MB)`);
+          const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(1);
+          newErrors.push(`${file.name}: File too large (${sizeGB}GB > 10GB)`);
           continue;
         }
 
-        // Security: Check for empty files
+        // Check for empty files
         if (file.size === 0) {
           newErrors.push(`${file.name}: File is empty`);
           continue;
@@ -116,161 +99,292 @@ export const DropZone = memo(({
     }
 
     return { valid: validFiles, errors: newErrors };
-  }, [maxFiles, maxFileSize]);
+  }, [maxFiles, maxFileSize, isMobile]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+  }, []);
+
+  const handleDragIn = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
     }
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
+  const handleDragOut = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
-    if (disabled || isValidating) return;
-    
-    const files = e.dataTransfer.files;
-    if (files?.length) {
-      const { valid, errors } = await validateFiles(files);
-      setErrors(errors);
-      if (valid.length > 0) {
-        onFilesSelected(valid);
-      }
-    }
-  }, [onFilesSelected, disabled, validateFiles, isValidating]);
+  }, []);
 
-  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files?.length) {
-      setIsValidating(true);
-      try {
-        const { valid, errors } = await validateFiles(files);
-        setErrors(errors);
-        if (valid.length > 0) {
-          onFilesSelected(valid);
-        }
-      } catch (error) {
-        console.error('File input error:', error);
-        setErrors(['An error occurred while processing files. Please try again.']);
-      } finally {
-        setIsValidating(false);
-      }
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
     }
-    // Reset input value to allow selecting the same files again
-    e.target.value = '';
-  }, [onFilesSelected, validateFiles]);
+  }, []);
+
+  const handleFiles = useCallback((files: FileList) => {
+    console.log('Processing files...');
+    const { valid, errors } = validateFiles(files);
+    console.log('Validation result - valid:', valid.length, 'errors:', errors.length);
+    
+    setErrors(errors);
+    
+    if (valid.length > 0) {
+      console.log('Calling onFilesSelected with', valid.length, 'files');
+      onFilesSelected(valid);
+      
+      // Simulate upload progress for visual feedback
+      setUploadProgress(0);
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 50);
+    }
+  }, [validateFiles, onFilesSelected]);
+
+  const handleButtonClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Button clicked');
+    if (inputRef.current) {
+      console.log('Triggering file input click');
+      inputRef.current.click();
+    }
+  }, []);
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File input change event triggered');
+    if (e.target.files && e.target.files.length > 0) {
+      console.log('Files selected:', e.target.files.length, 'FileList');
+      handleFiles(e.target.files);
+    }
+  }, [handleFiles]);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    const now = Date.now();
+    if (now - lastClickTime < 500) {
+      return; // Debounce rapid clicks
+    }
+    setLastClickTime(now);
+    
+    if (inputRef.current) {
+      inputRef.current.click();
+    }
+  }, [lastClickTime]);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getSupportedFormats = () => {
+    return ['MP4', 'AVI', 'MOV', 'MKV', 'WMV', 'FLV', 'WebM', '3GP', 'OGV', 'M4V'];
+  };
 
   return (
     <div className={cn("w-full", className)}>
       <div
         className={cn(
-          "relative border-2 border-dashed rounded-lg p-6 text-center transition-smooth cursor-pointer",
-          "hover:border-video-primary hover:bg-drop-zone-bg/50",
-          {
-            "border-drop-zone-active bg-video-primary/5": dragActive,
-            "border-drop-zone-border bg-drop-zone-bg": !dragActive,
-            "opacity-50 cursor-not-allowed": disabled,
-          }
+          "relative group dropzone-enhanced",
+          "border-2 border-dashed rounded-lg p-8",
+          "transition-all duration-300 ease-out",
+          "bg-gradient-to-br from-background to-muted/20",
+          dragActive && "drag-active",
+          isHovered && "border-primary/50 bg-primary/5",
+          disabled && "opacity-50 cursor-not-allowed",
+          "animate-in"
         )}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
+        onDragEnter={handleDragIn}
+        onDragLeave={handleDragOut}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        onClick={() => !disabled && document.getElementById('file-input')?.click()}
+        onClick={handleClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-label="File upload area"
-        aria-describedby="dropzone-description"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            if (!disabled) {
-              document.getElementById('file-input')?.click();
+        tabIndex={0}
+        aria-label="Drop video files here or click to browse"
+                  onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (inputRef.current) {
+                inputRef.current.click();
+              }
             }
-          }
-        }}
+          }}
       >
-        <input
-          id="file-input"
-          type="file"
-          multiple
-          accept="video/*,.mp4,.avi,.mov,.mkv,.wmv,.flv,.webm,.3gp,.ogv,.m4v,.qt"
-          onChange={handleFileInput}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={disabled}
-          aria-label="Select video files"
-          title="Select video files to compress"
-        />
-
-        <div className="flex flex-col items-center gap-4">
-          <div className={cn(
-            "w-16 h-16 rounded-full flex items-center justify-center transition-smooth",
-            dragActive ? "bg-video-primary text-white" : 
-            isValidating ? "bg-video-primary text-white animate-pulse" :
-            "bg-video-secondary text-muted-foreground"
-          )}>
-            {isValidating ? (
-              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : dragActive ? (
-              <Upload className="w-8 h-8" />
-            ) : (
-              <FileVideo className="w-8 h-8" />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-foreground">
-              {isValidating ? "Processing files..." :
-               dragActive ? "Drop your videos here" : 
-               "Select or drop video files"}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Supports MP4, AVI, MOV, MKV, WMV, FLV, WebM, 3GP, OGV, M4V, QT
-            </p>
-            <p id="dropzone-description" className="text-xs text-muted-foreground">
-              Maximum {maxFiles} files • Up to {Math.round(maxFileSize / (1024 * 1024 * 1024))}GB per file
-            </p>
-          </div>
-
-          {!disabled && !isValidating && (
-            <div className="flex items-center gap-2 text-video-primary">
-              <Upload className="w-4 h-4" />
-              <span className="text-sm font-medium">Click to browse or drag & drop</span>
-            </div>
-          )}
+        {/* Animated Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-transparent to-primary/20 animate-pulse" />
         </div>
+
+        {/* Upload Progress Overlay */}
+        {uploadProgress > 0 && uploadProgress < 100 && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
+            <div className="text-center">
+              <div className="loading-spinner mb-4" />
+              <p className="text-sm text-muted-foreground">Processing files...</p>
+              <div className="w-32 h-2 bg-muted rounded-full mt-2 overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="relative z-10 text-center space-y-4">
+          {/* Enhanced Icon */}
+          <div className="relative mx-auto w-16 h-16">
+            <div className={cn(
+              "absolute inset-0 rounded-full bg-primary/10 flex items-center justify-center",
+              "transition-all duration-300",
+              dragActive && "scale-110 bg-primary/20",
+              isHovered && "scale-105"
+            )}>
+              <Upload className={cn(
+                "w-8 h-8 text-primary transition-all duration-300",
+                dragActive && "animate-bounce",
+                isHovered && "scale-110"
+              )} />
+            </div>
+            
+            {/* Floating Icons */}
+            <div className="absolute -top-2 -right-2">
+              <div className="w-6 h-6 bg-accent rounded-full flex items-center justify-center animate-pulse">
+                <Sparkles className="w-3 h-3 text-accent-foreground" />
+              </div>
+            </div>
+            <div className="absolute -bottom-2 -left-2">
+              <div className="w-6 h-6 bg-secondary rounded-full flex items-center justify-center animate-pulse delay-300">
+                <FileVideo className="w-3 h-3 text-secondary-foreground" />
+              </div>
+            </div>
+          </div>
+
+          {/* Enhanced Text */}
+          <div className="space-y-2">
+            <h3 className="text-responsive-lg font-semibold text-foreground">
+              {dragActive ? 'Drop your videos here' : 'Upload Video Files'}
+            </h3>
+            <p className="text-responsive-sm text-muted-foreground max-w-md mx-auto">
+              Drag and drop your video files here, or{' '}
+              <span className="text-primary font-medium underline decoration-dotted underline-offset-4">
+                click to browse
+              </span>
+            </p>
+          </div>
+
+          {/* Enhanced Button */}
+          <Button
+            onClick={handleButtonClick}
+            disabled={disabled || isValidating}
+            className={cn(
+              "btn-enhanced mobile-enhanced",
+              "bg-primary hover:bg-primary/90 text-primary-foreground",
+              "px-6 py-3 rounded-lg font-medium",
+              "transition-all duration-200",
+              "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+              isValidating && "loading-pulse"
+            )}
+            size="lg"
+          >
+            {isValidating ? (
+              <>
+                <div className="loading-spin w-4 h-4 mr-2" />
+                Validating...
+              </>
+            ) : (
+              <>
+                <Cloud className="w-4 h-4 mr-2" />
+                Choose Files
+              </>
+            )}
+          </Button>
+
+          {/* Enhanced File Info */}
+          <div className="space-y-3 pt-4">
+            {/* Supported Formats */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {getSupportedFormats().slice(0, 6).map((format) => (
+                <Badge 
+                  key={format} 
+                  variant="secondary" 
+                  className="badge-enhanced text-xs px-2 py-1"
+                >
+                  {format}
+                </Badge>
+              ))}
+              <Badge variant="outline" className="text-xs px-2 py-1">
+                +{getSupportedFormats().length - 6} more
+              </Badge>
+            </div>
+
+            {/* File Limits */}
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>Maximum file size: {formatFileSize(maxFileSize)}</p>
+              <p>Maximum files: {maxFiles}</p>
+            </div>
+          </div>
+        </div>
+
+                 {/* Hidden File Input */}
+         <input
+           ref={inputRef}
+           type="file"
+           multiple
+           accept="video/*,.mp4,.avi,.mov,.mkv,.wmv,.flv,.webm,.3gp,.ogv,.m4v,.qt,.m4a,.mpg,.mpeg,.ts,.mts,.m2ts"
+           onChange={handleFileInput}
+           className="hidden"
+           disabled={disabled}
+           aria-label="Select video files"
+           title="Select video files to upload"
+         />
       </div>
 
-      {/* Error Messages */}
+      {/* Enhanced Error Display */}
       {errors.length > 0 && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-2 animate-in">
           {errors.map((error, index) => (
-            <div key={index} className="flex items-start gap-2 p-3 bg-video-danger/10 border border-video-danger/20 rounded-md">
-              <AlertCircle className="w-4 h-4 text-video-danger mt-0.5 flex-shrink-0" />
-              <span className="text-sm text-video-danger">{error}</span>
+            <div
+              key={index}
+              className="error-enhanced flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20"
+            >
+              <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+              <span className="text-sm text-destructive">{error}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Supported Formats Info */}
-      <div className="mt-4 p-3 bg-video-info/10 border border-video-info/20 rounded-md">
-        <div className="flex items-start gap-2">
-          <CheckCircle className="w-4 h-4 text-video-info mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-video-info">
-            <div className="font-medium mb-1">Supported Formats:</div>
-            <div className="text-xs opacity-80">
-              MP4, AVI, MOV, MKV, WMV, FLV, WebM, 3GP, OGV, M4V, QT
-            </div>
+      {/* Success Message */}
+      {uploadProgress === 100 && (
+        <div className="mt-4 animate-in">
+          <div className="success-enhanced flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+            <span className="text-sm text-green-500">Files uploaded successfully!</span>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 });
+
+DropZone.displayName = 'DropZone';

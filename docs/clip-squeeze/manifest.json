@@ -1,0 +1,62 @@
+{
+  "name": "ClipSqueeze - Free Online Video Compression & Repair Tool",
+  "short_name": "ClipSqueeze",
+  "description": "Compress videos online for free with ClipSqueeze. Reduce video file size up to 90% while maintaining quality. Repair corrupted videos, fix metadata issues, and optimize for sharing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["utilities", "productivity", "multimedia"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "ClipSqueeze Video Compression Interface"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Compress Video",
+      "short_name": "Compress",
+      "description": "Quickly compress a video file",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/favicon.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Repair Video",
+      "short_name": "Repair",
+      "description": "Repair corrupted video files",
+      "url": "/repair",
+      "icons": [
+        {
+          "src": "/favicon.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+} 

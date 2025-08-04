@@ -1,17 +1,11 @@
-<<<<<<< HEAD
-import React, { useState, useRef, useCallback } from "react";
-=======
 import React, { useState, useRef, useCallback, memo } from "react";
->>>>>>> 6f15866 (latest fixes)
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faPlay, 
   faPause, 
-  faExpand, 
   faDownload,
   faFileVideo,
   faCompressArrowsAlt,
@@ -19,8 +13,14 @@ import {
   faBackward,
   faForward,
   faVolumeMute,
-  faVolumeUp
+  faVolumeUp,
+  faWindowMaximize,
+  faFileAlt,
+  faCheckCircle,
+  faExclamationTriangle
 } from "@fortawesome/free-solid-svg-icons";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface VideoPreviewProps {
   originalFile: File;
@@ -37,14 +37,52 @@ export const VideoPreview = memo(({
   compressedSize,
   onDownload 
 }: VideoPreviewProps) => {
+  const isMobile = useIsMobile();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentVideo, setCurrentVideo] = useState<'original' | 'compressed'>('compressed');
+  const [currentVideo, setCurrentVideo] = useState<'original' | 'compressed'>(
+    compressedBlob ? 'compressed' : 'original'
+  );
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [isInPiP, setIsInPiP] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [originalUrl, setOriginalUrl] = useState<string>('');
   const [compressedUrl, setCompressedUrl] = useState<string>('');
+
+  // Check if Picture-in-Picture is supported
+  const isPiPSupported = document.pictureInPictureEnabled || 
+    ('webkitSupportsPresentationMode' in document && 
+     typeof (document as Document & { webkitSupportsPresentationMode?: () => boolean }).webkitSupportsPresentationMode === 'function');
+
+  const handlePictureInPicture = useCallback(async () => {
+    if (!videoRef.current) return;
+    
+    try {
+      if (document.pictureInPictureElement) {
+        // Exit PiP if already in PiP mode
+        await document.exitPictureInPicture();
+      } else {
+        // Enter PiP mode
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (error) {
+      console.warn('Picture-in-Picture failed:', error);
+      // Fallback: try to make the video fullscreen
+      try {
+        if (videoRef.current.requestFullscreen) {
+          await videoRef.current.requestFullscreen();
+        } else if ('webkitRequestFullscreen' in videoRef.current) {
+          await (videoRef.current as HTMLVideoElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen?.();
+        }
+      } catch (fullscreenError) {
+        console.warn('Fullscreen fallback also failed:', fullscreenError);
+      }
+    }
+  }, []);
 
   // Create URLs only once when component mounts or when files change
   React.useEffect(() => {
@@ -59,37 +97,44 @@ export const VideoPreview = memo(({
 
     // Cleanup URLs when component unmounts or when files change
     return () => {
-      URL.revokeObjectURL(newOriginalUrl);
-      if (newCompressedUrl) {
-        URL.revokeObjectURL(newCompressedUrl);
+      try {
+        URL.revokeObjectURL(newOriginalUrl);
+        if (newCompressedUrl) {
+          URL.revokeObjectURL(newCompressedUrl);
+        }
+      } catch (error) {
+        console.warn('Error revoking object URLs:', error);
       }
     };
   }, [originalFile, compressedBlob]);
 
-  const togglePlay = useCallback(() => {
-<<<<<<< HEAD
-    const video = videoRef.current;
-    if (!video) return;
+  // Handle PiP state changes
+  React.useEffect(() => {
+    const handlePiPChange = () => {
+      setIsInPiP(!!document.pictureInPictureElement);
+    };
 
-    if (video.paused) {
-      video.play();
-      setIsPlaying(true);
-    } else {
-      video.pause();
-      setIsPlaying(false);
-    }
+    document.addEventListener('enterpictureinpicture', handlePiPChange);
+    document.addEventListener('leavepictureinpicture', handlePiPChange);
+
+    return () => {
+      document.removeEventListener('enterpictureinpicture', handlePiPChange);
+      document.removeEventListener('leavepictureinpicture', handlePiPChange);
+    };
   }, []);
-=======
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+
+
+
+  const togglePlay = useCallback(() => {
+    if (!videoRef.current) return;
+    
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
     }
+    setIsPlaying(!isPlaying);
   }, [isPlaying]);
->>>>>>> 6f15866 (latest fixes)
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
@@ -100,6 +145,8 @@ export const VideoPreview = memo(({
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      setIsLoading(false);
+      setHasError(false);
     }
   }, []);
 
@@ -109,11 +156,7 @@ export const VideoPreview = memo(({
     }
   }, []);
 
-  const seekTo = useCallback((time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-    }
-  }, []);
+
 
   const skipForward = useCallback(() => {
     if (videoRef.current) {
@@ -134,43 +177,44 @@ export const VideoPreview = memo(({
     }
   }, []);
 
-  // Keyboard controls
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoading(false);
+  }, []);
+
+  // Handle keyboard shortcuts
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!videoRef.current) return;
-      
+
       switch (event.key) {
         case ' ':
+        case 'k':
           event.preventDefault();
           togglePlay();
-          break;
-        case 'ArrowRight':
-          event.preventDefault();
-          skipForward();
           break;
         case 'ArrowLeft':
           event.preventDefault();
           skipBackward();
           break;
-        case 'Home':
+        case 'ArrowRight':
           event.preventDefault();
-          seekTo(0);
-          break;
-        case 'End':
-          event.preventDefault();
-          seekTo(duration);
+          skipForward();
           break;
         case 'm':
-        case 'M':
           event.preventDefault();
           toggleMute();
+          break;
+        case 'f':
+          event.preventDefault();
+          handlePictureInPicture();
           break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [duration, skipForward, skipBackward, togglePlay, seekTo, toggleMute]);
+  }, [togglePlay, skipBackward, skipForward, toggleMute, handlePictureInPicture]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -186,246 +230,252 @@ export const VideoPreview = memo(({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const compressionRatio = compressedSize ? ((originalSize - compressedSize) / originalSize * 100) : 0;
+  const getCompressionRatio = () => {
+    if (!compressedSize) return null;
+    const ratio = ((originalSize - compressedSize) / originalSize) * 100;
+    return Math.round(ratio);
+  };
+
+  const compressionRatio = getCompressionRatio();
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+    <Card className="card-enhanced animate-in overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-card-title flex items-center gap-2">
+            <FontAwesomeIcon icon={faFileVideo} className="text-primary" />
+            <span>Video Preview</span>
+          </CardTitle>
           <div className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faFileVideo} className="text-video-primary" />
-            <span className="truncate">{originalFile.name}</span>
-          </div>
-          {compressedBlob && (
-            <Button
-              aria-label="Download compressed video"
-              onClick={onDownload}
-              size="sm"
-              className="bg-yellow-500 hover:bg-yellow-600 text-white"
-            >
-              <FontAwesomeIcon icon={faDownload} className="mr-2" />
-              Download
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {/* Video Player */}
-        <div className="relative bg-black rounded-lg overflow-hidden aspect-video max-h-[40vh] sm:max-h-[50vh] lg:max-h-none">
-          {originalUrl && (
-            <video
-              ref={videoRef}
-              src={currentVideo === 'original' ? originalUrl : compressedUrl || originalUrl}
-              className="w-full h-full object-contain"
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onVolumeChange={handleVolumeChange}
-              onError={(e) => {
-                console.error('Video playback error:', e);
-                // Fallback to original video if compressed video fails
-                if (currentVideo === 'compressed' && compressedUrl) {
-                  setCurrentVideo('original');
-                }
-              }}
-              controls={true}
-              playsInline={true}
-              preload="metadata"
-              crossOrigin="anonymous"
-              key={`${currentVideo}-${originalUrl}`}
-              aria-label={`Video player for ${originalFile.name}`}
-              title={originalFile.name}
-            />
-          )}
-          
-          {/* Video Controls Overlay */}
-          <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-            <div className="flex items-center gap-4">
-              <Button
-                aria-label={isPlaying ? 'Pause video' : 'Play video'}
-                onClick={togglePlay}
-                variant="secondary"
-                size="lg"
-                className="bg-white/90 hover:bg-white text-black"
-                aria-label={isPlaying ? "Pause video" : "Play video"}
+            {compressedBlob && (
+              <Badge 
+                variant="secondary" 
+                className="badge-enhanced animate-scale"
               >
-                <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
-              </Button>
-              
-              <Dialog>
-                <DialogTrigger asChild>
+                <FontAwesomeIcon icon={faCompressArrowsAlt} className="w-3 h-3 mr-1" />
+                Compressed
+              </Badge>
+            )}
+            {compressionRatio && (
+              <Badge 
+                variant="default" 
+                className="badge-enhanced animate-scale"
+              >
+                <FontAwesomeIcon icon={faChartLine} className="w-3 h-3 mr-1" />
+                {compressionRatio}% smaller
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Video Player Container */}
+        <div className="relative video-player-enhanced group">
+          {/* Loading Overlay */}
+          {isLoading && (
+            <div className="loading-overlay">
+              <div className="text-center">
+                <div className="loading-spinner mb-4" />
+                <p className="text-sm text-muted-foreground">Loading video...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {hasError && (
+            <div className="absolute inset-0 bg-destructive/10 flex items-center justify-center rounded-lg">
+              <div className="text-center">
+                <FontAwesomeIcon 
+                  icon={faExclamationTriangle} 
+                  className="w-8 h-8 text-destructive mb-2" 
+                />
+                <p className="text-sm text-destructive">Failed to load video</p>
+              </div>
+            </div>
+          )}
+
+          {/* Video Element */}
+          <video
+            ref={videoRef}
+            className={cn(
+              "w-full rounded-lg transition-all duration-200",
+              "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            )}
+            style={{ aspectRatio: 'auto', minHeight: '200px', maxHeight: '400px' }}
+            controls={true}
+            muted={isMuted}
+            onLoadedMetadata={handleLoadedMetadata}
+            onTimeUpdate={handleTimeUpdate}
+            onError={handleError}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onVolumeChange={handleVolumeChange}
+            onMouseEnter={() => setShowControls(true)}
+            onMouseLeave={() => setShowControls(false)}
+            src={currentVideo === 'original' ? originalUrl : compressedUrl}
+            aria-label={`${currentVideo} video preview`}
+          />
+
+          {/* Enhanced Custom Controls Overlay */}
+          <div className={cn(
+            "video-controls-enhanced",
+            showControls && "opacity-100"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={togglePlay}
+                  size="sm"
+                  variant="secondary"
+                  className="btn-enhanced mobile-enhanced"
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                >
+                  <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
+                </Button>
+                
+                <Button
+                  onClick={skipBackward}
+                  size="sm"
+                  variant="secondary"
+                  className="btn-enhanced mobile-enhanced"
+                  aria-label="Skip backward 10 seconds"
+                >
+                  <FontAwesomeIcon icon={faBackward} />
+                </Button>
+                
+                <Button
+                  onClick={skipForward}
+                  size="sm"
+                  variant="secondary"
+                  className="btn-enhanced mobile-enhanced"
+                  aria-label="Skip forward 10 seconds"
+                >
+                  <FontAwesomeIcon icon={faForward} />
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={toggleMute}
+                  size="sm"
+                  variant="secondary"
+                  className="btn-enhanced mobile-enhanced"
+                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                >
+                  <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} />
+                </Button>
+
+                {isPiPSupported && (
                   <Button
-                    aria-label="Enter fullscreen mode"
+                    onClick={handlePictureInPicture}
+                    size="sm"
                     variant="secondary"
-                    size="lg"
-                    className="bg-white/90 hover:bg-white text-black"
-                    aria-label="Open video in fullscreen"
+                    className="btn-enhanced mobile-enhanced"
+                    aria-label={isInPiP ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}
                   >
-                    <FontAwesomeIcon icon={faExpand} />
+                    <FontAwesomeIcon icon={faWindowMaximize} />
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl w-full p-2">
-                  <DialogHeader>
-                    <DialogTitle className="truncate">{originalFile.name}</DialogTitle>
-                  </DialogHeader>
-                  <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                    {originalUrl && (
-                                              <video
-                          src={currentVideo === 'original' ? originalUrl : compressedUrl || originalUrl}
-                          className="w-full h-full object-contain"
-                          controls={true}
-                          key={`dialog-${currentVideo}-${originalUrl}`}
-                        />
-                    )}
-                  </div>
-                </DialogContent>
-              </Dialog>
+                )}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-2">
+              <div className="progress-enhanced h-1 w-full">
+                <div 
+                  className="h-full bg-primary transition-all duration-100"
+                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Custom Video Controls */}
-        {duration > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                aria-label="Skip backward 10 seconds"
-                variant="outline"
-                size="sm"
-                onClick={skipBackward}
-                className="flex-1"
-                aria-label="Skip backward 10 seconds"
-              >
-                <FontAwesomeIcon icon={faBackward} className="mr-1" />
-                -10s
-              </Button>
-              <Button
-                aria-label={isPlaying ? 'Pause video' : 'Play video'}
-                variant="outline"
-                size="sm"
-                onClick={togglePlay}
-                className="flex-1"
-                aria-label={isPlaying ? "Pause video" : "Play video"}
-              >
-                <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="mr-1" />
-                {isPlaying ? 'Pause' : 'Play'}
-              </Button>
-              <Button
-                aria-label="Skip forward 10 seconds"
-                variant="outline"
-                size="sm"
-                onClick={skipForward}
-                className="flex-1"
-                aria-label="Skip forward 10 seconds"
-              >
-                <FontAwesomeIcon icon={faForward} className="mr-1" />
-                +10s
-              </Button>
-              <Button
-                aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-                variant="outline"
-                size="sm"
-                onClick={toggleMute}
-                className="flex-1"
-                aria-label={isMuted ? "Unmute video" : "Mute video"}
-              >
-                <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} className="mr-1" />
-                {isMuted ? 'Unmute' : 'Mute'}
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground text-center">
-              Keyboard: Space (play/pause) • ← → (skip 10s) • M (mute) • Home/End (start/end)
-            </div>
-          </div>
-        )}
-
-        {/* Video Toggle */}
+        {/* Video Selection Tabs */}
         {compressedBlob && (
           <div className="flex gap-2">
             <Button
-              aria-label="Show original video"
               variant={currentVideo === 'original' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setCurrentVideo('original')}
-              className="flex-1"
+              className="btn-enhanced mobile-enhanced flex-1"
             >
+              <FontAwesomeIcon icon={faFileAlt} className="w-3 h-3 mr-2" />
               Original
             </Button>
             <Button
-              aria-label="Show compressed video"
               variant={currentVideo === 'compressed' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setCurrentVideo('compressed')}
-              className="flex-1"
+              className="btn-enhanced mobile-enhanced flex-1"
             >
+              <FontAwesomeIcon icon={faCheckCircle} className="w-3 h-3 mr-2" />
               Compressed
             </Button>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* File Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <FontAwesomeIcon icon={faFileVideo} className="text-muted-foreground" />
-              Original
+            <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+              <FontAwesomeIcon icon={faFileAlt} className="w-3 h-3" />
+              File Details
+            </h4>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p><span className="font-medium">Name:</span> {originalFile.name}</p>
+              <p><span className="font-medium">Size:</span> {formatBytes(originalSize)}</p>
+              <p><span className="font-medium">Type:</span> {originalFile.type || 'Unknown'}</p>
             </div>
-            <div className="text-2xl font-bold">{formatBytes(originalSize)}</div>
           </div>
-          
-          {compressedSize && (
+
+          {compressedBlob && compressedSize && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <FontAwesomeIcon icon={faCompressArrowsAlt} className="text-video-primary" />
-                Compressed
-              </div>
-              <div className="text-2xl font-bold text-video-success">
-                {formatBytes(compressedSize)}
+              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                <FontAwesomeIcon icon={faCompressArrowsAlt} className="w-3 h-3" />
+                Compression Results
+              </h4>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p><span className="font-medium">New Size:</span> {formatBytes(compressedSize)}</p>
+                <p><span className="font-medium">Saved:</span> {formatBytes(originalSize - compressedSize)}</p>
+                {compressionRatio && (
+                  <p><span className="font-medium">Reduction:</span> {compressionRatio}%</p>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Compression Stats */}
-        {compressedSize && (
-          <div className="pt-4 border-t space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faChartLine} className="text-video-primary" />
-                <span className="font-medium">Compression Stats</span>
-              </div>
-              <Badge variant="secondary" className="bg-video-success/10 text-video-success">
-                {compressionRatio.toFixed(1)}% saved
-              </Badge>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <div className="text-muted-foreground">Size Reduction</div>
-                <div className="font-medium">
-                  {formatBytes(originalSize - compressedSize)}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">New Size Ratio</div>
-                <div className="font-medium">
-                  {((compressedSize / originalSize) * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Download Button */}
+        {compressedBlob && (
+          <Button
+            onClick={onDownload}
+            className="btn-enhanced mobile-enhanced w-full"
+            size="lg"
+          >
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
+            Download Compressed Video
+          </Button>
         )}
+
+        {/* Keyboard Shortcuts Help */}
+        <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          <p className="font-medium mb-2">Keyboard Shortcuts:</p>
+          <div className="grid grid-cols-2 gap-2">
+            <span>Space/K - Play/Pause</span>
+            <span>←/→ - Skip 10s</span>
+            <span>M - Mute/Unmute</span>
+            <span>F - Picture-in-Picture</span>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
-<<<<<<< HEAD
-}
-=======
 });
->>>>>>> 6f15866 (latest fixes)
+
+VideoPreview.displayName = 'VideoPreview';

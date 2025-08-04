@@ -17,11 +17,7 @@ import {
   Clock, 
   Download,
   RotateCcw,
-<<<<<<< HEAD
-  FileVideo,
-=======
   FileVideo
->>>>>>> 6f15866 (latest fixes)
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -123,7 +119,6 @@ function VideoRepairContent() {
             if (newProgress >= 100) {
               // Clear the interval immediately to prevent memory leaks
               clearInterval(progressInterval);
-              progressIntervalsRef.current.delete(jobId);
 
               // Simulate repair completion
               setTimeout(async () => {
@@ -171,13 +166,9 @@ function VideoRepairContent() {
         return updated;
       });
     }, 100); // Faster interval
-<<<<<<< HEAD
-    progressIntervalsRef.current.set(jobId, progressInterval);
-=======
 
     // Store the interval ID for cleanup
     return progressInterval;
->>>>>>> 6f15866 (latest fixes)
   }, [repairJobs, analyzeVideoFile, toast]);
 
   const handleStartRepair = useCallback(() => {
@@ -408,14 +399,7 @@ function VideoRepairContent() {
               <CardContent>
                 <div className="space-y-4">
                   {selectedFiles.map((file, index) => (
-<<<<<<< HEAD
-                    <div
-                      key={`${file.name}-${file.lastModified}`}
-                      className="border rounded-lg p-4"
-                    >
-=======
                     <div key={`${file.name}-${file.size}-${index}`} className="border rounded-lg p-4">
->>>>>>> 6f15866 (latest fixes)
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-xs lg:text-base truncate max-w-[50%]">{file.name}</span>
                         <span className="text-xs lg:text-sm text-muted-foreground flex-shrink-0">

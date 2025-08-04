@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { BackToTop } from "@/components/ui/back-to-top";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Suspense, lazy } from "react";
 
 // Lazy load components for better performance
@@ -34,23 +33,6 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-<<<<<<< HEAD
-      <ErrorBoundary>
-        <BrowserRouter>
-          <Routes>
-          <Route path="/" element={<VideoCompressor />} />
-          <Route path="/repair" element={<VideoRepair />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/guide" element={<HowToUse />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/about" element={<About />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-          </Routes>
-          <BackToTop />
-        </BrowserRouter>
-      </ErrorBoundary>
-=======
       <BrowserRouter>
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner />}>
@@ -68,7 +50,6 @@ const App = () => (
           <BackToTop />
         </ErrorBoundary>
       </BrowserRouter>
->>>>>>> 6f15866 (latest fixes)
     </TooltipProvider>
   </QueryClientProvider>
 );

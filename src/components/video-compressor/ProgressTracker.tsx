@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
-import { useEffect, useState, memo, useMemo } from "react";
->>>>>>> 6f15866 (latest fixes)
+import React, { useEffect, useState, memo, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +18,7 @@ import {
   faHdd,
   faBolt
 } from "@fortawesome/free-solid-svg-icons";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface CompressionJob {
   id: string;
@@ -32,11 +30,14 @@ export interface CompressionJob {
   originalSize: number;
   compressedSize?: number;
   outputBlob?: Blob;
+  outputFileName?: string;
   error?: string;
   settings: {
     preset: string;
     crf: number;
     scale: number;
+    outputFormat?: string;
+    enableConversion?: boolean;
   };
 }
 
@@ -83,6 +84,7 @@ export const ProgressTracker = memo(({
   onRetry,
   className 
 }: ProgressTrackerProps) => {
+  const isMobile = useIsMobile();
 
   // Memoize job statistics to prevent unnecessary recalculations
   const jobStats = useMemo(() => {
@@ -112,7 +114,7 @@ export const ProgressTracker = memo(({
               <FontAwesomeIcon icon={faPlay} className="text-video-primary" />
               Compression Progress
             </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className={`flex items-center gap-2 text-sm ${isMobile ? 'flex-col items-start gap-1' : ''}`}>
               <Badge variant="secondary">
                 {completedJobs.length}/{jobs.length} Complete
               </Badge>
@@ -133,7 +135,7 @@ export const ProgressTracker = memo(({
             <Progress value={totalProgress} className="h-2" />
             
               {activeJobs.length > 0 && (
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <div className={`flex items-center gap-4 text-xs text-muted-foreground ${isMobile ? 'flex-col items-start gap-2' : ''}`}>
                   <div className="flex items-center gap-1">
                     <FontAwesomeIcon icon={faClock} />
                     {activeJobs.length} processing
@@ -155,14 +157,6 @@ export const ProgressTracker = memo(({
           const isCompleted = job.status === 'completed';
           const isError = job.status === 'error';
           const isWaiting = job.status === 'waiting';
-
-<<<<<<< HEAD
-          // Compression ratio can be calculated when displaying stats
-=======
-
-
-
->>>>>>> 6f15866 (latest fixes)
 
           return (
             <div key={job.id} className="space-y-3">
@@ -190,16 +184,16 @@ export const ProgressTracker = memo(({
 
                     <div className="flex-1 min-w-0 space-y-2">
                       {/* File Info */}
-                      <div className="flex items-start justify-between gap-2">
+                      <div className={`flex items-start justify-between gap-2 ${isMobile ? 'flex-col items-start gap-3' : ''}`}>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-medium truncate text-sm lg:text-base">{job.file.name}</h4>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <h4 className={`font-medium truncate ${isMobile ? 'text-sm' : 'text-sm lg:text-base'}`}>{job.file.name}</h4>
+                          <div className={`flex flex-wrap items-center gap-2 text-xs text-muted-foreground ${isMobile ? 'flex-col items-start gap-1' : ''}`}>
                             <span>Original: {formatBytes(job.originalSize)}</span>
-                            <span>•</span>
+                            {!isMobile && <span>•</span>}
                             <span>{job.settings.preset} preset</span>
                             {job.compressedSize && (
                               <>
-                                <span>•</span>
+                                {!isMobile && <span>•</span>}
                                 <span className="text-video-success">
                                   Compressed: {formatBytes(job.compressedSize)} ({Math.round(job.originalSize > 0 ? ((job.originalSize - job.compressedSize) / job.originalSize) * 100 : 0)}% saved)
                                 </span>
@@ -208,12 +202,12 @@ export const ProgressTracker = memo(({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className={`flex items-center gap-1 flex-shrink-0 ${isMobile ? 'w-full justify-start' : ''}`}>
                           {isCompleted && (
                             <Button
                               size="sm"
                               onClick={() => onDownload(job.id)}
-                              className="h-8 px-3 bg-yellow-500 hover:bg-yellow-600 text-white text-sm"
+                              className={`h-8 px-3 bg-yellow-500 hover:bg-yellow-600 text-white text-sm ${isMobile ? 'w-full sm:w-auto' : ''}`}
                             >
                               <FontAwesomeIcon icon={faDownload} className="mr-1" />
                               <span className="hidden sm:inline">Download</span>
@@ -225,7 +219,7 @@ export const ProgressTracker = memo(({
                               size="sm"
                               variant="outline"
                               onClick={() => onRetry(job.id)}
-                              className="h-8 px-3"
+                              className={`h-8 px-3 ${isMobile ? 'w-full sm:w-auto' : ''}`}
                             >
                               <FontAwesomeIcon icon={faRedo} className="mr-1" />
                               Retry
@@ -237,7 +231,7 @@ export const ProgressTracker = memo(({
                               size="sm"
                               variant="outline"
                               onClick={() => onCancelJob(job.id)}
-                              className="h-8 px-3 text-video-danger hover:text-video-danger hover:bg-video-danger/10"
+                              className={`h-8 px-3 text-video-danger hover:text-video-danger hover:bg-video-danger/10 ${isMobile ? 'w-full sm:w-auto' : ''}`}
                             >
                               <FontAwesomeIcon icon={faTimes} />
                             </Button>
@@ -285,7 +279,7 @@ export const ProgressTracker = memo(({
 
                       {/* Completion Stats */}
                       {isCompleted && job.compressedSize && (
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className={`flex items-center gap-4 text-xs text-muted-foreground ${isMobile ? 'flex-col items-start gap-2' : ''}`}>
                           <div className="flex items-center gap-1">
                             <FontAwesomeIcon icon={faHdd} />
                             {formatBytes(job.originalSize)} → {formatBytes(job.compressedSize)}
@@ -294,6 +288,12 @@ export const ProgressTracker = memo(({
                             <FontAwesomeIcon icon={faBolt} />
                             {Math.round(job.originalSize > 0 ? ((job.originalSize - job.compressedSize) / job.originalSize) * 100 : 0)}% smaller
                           </div>
+                          {job.settings.enableConversion && job.settings.outputFormat && (
+                            <div className="flex items-center gap-1 text-video-accent">
+                              <FontAwesomeIcon icon={faPlay} />
+                              Converted to {job.settings.outputFormat.toUpperCase()}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -301,16 +301,16 @@ export const ProgressTracker = memo(({
                 </CardContent>
               </Card>
 
-              {/* Video Preview for Completed Jobs */}
-              {isCompleted && job.outputBlob && (
-                <VideoPreview
-                  originalFile={job.file}
-                  compressedBlob={job.outputBlob}
-                  originalSize={job.originalSize}
-                  compressedSize={job.compressedSize}
-                  onDownload={() => onDownload(job.id)}
-                />
-              )}
+                             {/* Video Preview for Completed Jobs */}
+               {isCompleted && job.outputBlob && (
+                 <VideoPreview
+                   originalFile={job.file}
+                   compressedBlob={job.outputBlob || null}
+                   originalSize={job.originalSize}
+                   compressedSize={job.compressedSize || null}
+                   onDownload={() => onDownload(job.id)}
+                 />
+               )}
             </div>
           );
         })}
