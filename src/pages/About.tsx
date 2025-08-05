@@ -1,4 +1,4 @@
-import { Shield, Zap, Globe, Download, Code, Users, Star, Github, Menu, Play } from "lucide-react";
+import { Shield, Zap, Globe, Download, Code, Users, Star, Github, Menu, Play, BarChart3, CheckCircle, Eye, Settings, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,18 @@ const features = [
   },
   {
     icon: Download,
-    title: "No Size Limits",
-    description: "Process files up to 5GB with support for all major video formats and codecs."
+    title: "Enhanced File Support",
+    description: "Process files up to 10GB with support for all major video formats and codecs."
+  },
+  {
+    icon: Eye,
+    title: "Video Previews",
+    description: "Preview videos before compression and compare original vs compressed results side-by-side."
+  },
+  {
+    icon: BarChart3,
+    title: "Tab-Based Interface",
+    description: "Intuitive tab navigation with Upload, Settings, Progress, and Final Results for streamlined workflow."
   }
 ];
 
@@ -41,22 +51,29 @@ const techStack = [
 
 const supportedFormats = [
   "MP4", "AVI", "MOV", "MKV", "WMV", 
-  "FLV", "WebM", "3GP", "OGV", "M4V", "QT"
+  "FLV", "WebM", "3GP", "OGV", "M4V", "QT",
+  "M4A", "MPG", "MPEG", "TS", "MTS", "M2TS"
 ];
 
 const stats = [
-  { label: "Supported Formats", value: "11+" },
-  { label: "Max File Size", value: "5GB" },
+  { label: "Supported Formats", value: "15+" },
+  { label: "Max File Size", value: "10GB" },
   { label: "Compression Presets", value: "6" },
   { label: "Privacy Level", value: "100%" }
 ];
 
 function AboutContent() {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === "collapsed";
   const navigate = useNavigate();
 
   return (
-    <div className="flex-1 flex flex-col">
+    <main className={`flex-1 transition-all duration-300 ${
+      isCollapsed 
+        ? 'lg:ml-16 xl:ml-16 2xl:ml-16' 
+        : 'lg:ml-64 xl:ml-72 2xl:ml-80'
+    }`}>
+      <div className="flex-1 flex flex-col">
       {/* Mobile header */}
       <header className="h-14 border-b bg-background flex items-center px-4 lg:hidden">
         <Button 
@@ -75,8 +92,8 @@ function AboutContent() {
         <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold text-foreground">About ClipSqueeze</h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          A professional, privacy-focused video compression tool that runs entirely in your browser. 
-          No uploads, no registration, no compromises.
+          A professional, privacy-focused video compression tool with an intuitive tab-based interface. 
+          Preview, compress, and compare videos entirely in your browser.
         </p>
         <div className="flex justify-center gap-4">
           <Badge variant="secondary" className="text-sm px-3 py-1">
@@ -107,7 +124,7 @@ function AboutContent() {
       {/* Key Features */}
       <section>
         <h2 className="text-2xl font-semibold mb-6 text-center">Why Choose Our Video Compressor?</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
             <Card key={index}>
               <CardHeader>
@@ -164,6 +181,62 @@ function AboutContent() {
 
       <Separator />
 
+      {/* Interface Features */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-6">Modern Interface Features</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-video-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Upload className="w-5 h-5 text-video-primary" />
+                Upload Tab
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Drag & drop interface with video previews and format validation</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-video-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Settings className="w-5 h-5 text-video-primary" />
+                Settings Tab
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Configure compression presets and custom settings</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-video-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BarChart3 className="w-5 h-5 text-video-primary" />
+                Progress Tab
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Real-time progress tracking with job management</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-video-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckCircle className="w-5 h-5 text-video-primary" />
+                Results Tab
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Side-by-side comparison and download options</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <Separator />
+
       {/* Supported Formats */}
       <section>
         <h2 className="text-2xl font-semibold mb-6">Supported Video Formats</h2>
@@ -215,30 +288,7 @@ function AboutContent() {
         </Card>
       </section>
 
-      <Separator />
 
-      {/* Open Source */}
-      <section className="text-center space-y-4">
-        <h2 className="text-2xl font-semibold">Open Source & Community</h2>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Video Compressor is built with transparency in mind. The source code is available for review, 
-          contributions, and learning. Join our community of developers and users.
-        </p>
-        <div className="flex justify-center gap-4">
-          <Button variant="outline">
-            <Github className="w-4 h-4 mr-2" />
-            View Source Code
-          </Button>
-          <Button variant="outline">
-            <Users className="w-4 h-4 mr-2" />
-            Join Community
-          </Button>
-          <Button variant="outline">
-            <Star className="w-4 h-4 mr-2" />
-            Give Feedback
-          </Button>
-        </div>
-      </section>
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground pt-8 border-t">
@@ -248,13 +298,14 @@ function AboutContent() {
         </div>
       </div>
     </div>
+    </main>
   );
 }
 
 export default function About() {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
         <AboutContent />
       </div>

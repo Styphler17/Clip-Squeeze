@@ -53,13 +53,27 @@ export const VideoPreview = memo(({
   const [originalUrl, setOriginalUrl] = useState<string>('');
   const [compressedUrl, setCompressedUrl] = useState<string>('');
 
-  // Check if Picture-in-Picture is supported
-  const isPiPSupported = document.pictureInPictureEnabled || 
-    ('webkitSupportsPresentationMode' in document && 
-     typeof (document as Document & { webkitSupportsPresentationMode?: () => boolean }).webkitSupportsPresentationMode === 'function');
+  // Check if Picture-in-Picture is supported (with SSR safety)
+  const [isPiPSupported, setIsPiPSupported] = useState(false);
+  
+  React.useEffect(() => {
+    // Check PiP support only after component mounts (client-side)
+    const checkPiPSupport = () => {
+      try {
+        return document.pictureInPictureEnabled || 
+          ('webkitSupportsPresentationMode' in document && 
+           typeof (document as Document & { webkitSupportsPresentationMode?: () => boolean }).webkitSupportsPresentationMode === 'function');
+      } catch (error) {
+        console.warn('Error checking PiP support:', error);
+        return false;
+      }
+    };
+    
+    setIsPiPSupported(checkPiPSupport());
+  }, []);
 
   const handlePictureInPicture = useCallback(async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || typeof document === 'undefined') return;
     
     try {
       if (document.pictureInPictureElement) {
@@ -110,6 +124,8 @@ export const VideoPreview = memo(({
 
   // Handle PiP state changes
   React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+    
     const handlePiPChange = () => {
       setIsInPiP(!!document.pictureInPictureElement);
     };

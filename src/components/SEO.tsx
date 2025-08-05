@@ -16,9 +16,9 @@ interface SEOProps {
 }
 
 const defaultSEO = {
-  title: 'ClipSqueeze - Free Online Video Compression & Repair Tool',
-  description: 'Compress videos online for free with ClipSqueeze. Reduce video file size up to 90% while maintaining quality. Repair corrupted videos, fix metadata issues, and optimize for sharing. No registration required, works in any browser.',
-  keywords: 'video compression, online video compressor, free video compression, video file size reducer, video repair, corrupted video fix, video optimization, MP4 compression, video converter, web video tools',
+  title: 'ClipSqueeze - Free Online Video Compression Tool',
+  description: 'Compress videos online for free with ClipSqueeze. Reduce video file size up to 90% while maintaining quality. No registration required, works in any browser.',
+  keywords: 'video compression, online video compressor, free video compression, video file size reducer, video optimization, MP4 compression, video converter, web video tools',
   image: 'https://clip-squeeze.brastyphler.click/logo.png',
   type: 'website' as const,
   author: 'ClipSqueeze',
@@ -128,14 +128,7 @@ export const VideoCompressorSEO: React.FC = () => (
   />
 );
 
-export const VideoRepairSEO: React.FC = () => (
-  <SEO
-    title="Video Repair - ClipSqueeze | Fix Corrupted Videos Online"
-    description="Repair corrupted videos online with ClipSqueeze. Fix metadata issues, container problems, and playback errors. Free video repair tool with no registration required."
-    keywords="video repair, corrupted video fix, video metadata repair, video container repair, broken video fix, video playback repair"
-    section="Video Repair"
-  />
-);
+
 
 export const HistorySEO: React.FC = () => (
   <SEO
@@ -149,7 +142,7 @@ export const HistorySEO: React.FC = () => (
 export const AboutSEO: React.FC = () => (
   <SEO
     title="About ClipSqueeze - Free Online Video Compression Tool"
-    description="Learn about ClipSqueeze, the free online video compression and repair tool. Privacy-focused, client-side processing, and no registration required."
+    description="Learn about ClipSqueeze, the free online video compression tool. Privacy-focused, client-side processing, and no registration required."
     keywords="about ClipSqueeze, video compression tool, online video tools, privacy-focused video compression"
     section="About"
   />
@@ -158,7 +151,7 @@ export const AboutSEO: React.FC = () => (
 export const HowToUseSEO: React.FC = () => (
   <SEO
     title="How to Use ClipSqueeze - Video Compression Guide"
-    description="Learn how to use ClipSqueeze for video compression and repair. Step-by-step guide with tips and best practices for optimal video compression results."
+    description="Learn how to use ClipSqueeze for video compression. Step-by-step guide with tips and best practices for optimal video compression results."
     keywords="how to compress videos, video compression guide, ClipSqueeze tutorial, video compression tips, compression best practices"
     section="Guide"
   />

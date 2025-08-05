@@ -25,8 +25,10 @@ export interface AppSettings {
     scale: number;
     preserveQuality: boolean;
   };
-  theme: 'light' | 'dark' | 'system';
   autoSaveHistory: boolean;
+  enableNotifications: boolean;
+  autoCompress: boolean;
+  qualityPreference: 'quality' | 'balanced' | 'size';
 }
 
 const STORAGE_KEYS = {
@@ -104,31 +106,41 @@ export const exportHistory = (): void => {
 export const getAppSettings = (): AppSettings => {
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
-    return stored ? JSON.parse(stored) : {
-      defaultPreset: 'balanced',
-      customSettings: {
-        crf: 25,
-        preset: 'medium',
-        scale: 100,
-        preserveQuality: false
-      },
-      theme: 'system',
-      autoSaveHistory: true
-    };
+    if (stored) {
+      const settings = JSON.parse(stored);
+      // Ensure all required properties exist
+      return {
+        defaultPreset: settings.defaultPreset || 'balanced',
+        customSettings: {
+          crf: settings.customSettings?.crf || 25,
+          preset: settings.customSettings?.preset || 'medium',
+          scale: settings.customSettings?.scale || 100,
+          preserveQuality: settings.customSettings?.preserveQuality || false,
+        },
+        autoSaveHistory: settings.autoSaveHistory !== undefined ? settings.autoSaveHistory : true,
+        enableNotifications: settings.enableNotifications !== undefined ? settings.enableNotifications : true,
+        autoCompress: settings.autoCompress !== undefined ? settings.autoCompress : false,
+        qualityPreference: settings.qualityPreference || 'balanced',
+      };
+    }
   } catch (error) {
     console.error('Error loading app settings:', error);
-    return {
-      defaultPreset: 'balanced',
-      customSettings: {
-        crf: 25,
-        preset: 'medium',
-        scale: 100,
-        preserveQuality: false
-      },
-      theme: 'system',
-      autoSaveHistory: true
-    };
   }
+  
+  // Return default settings
+  return {
+    defaultPreset: 'balanced',
+    customSettings: {
+      crf: 25,
+      preset: 'medium',
+      scale: 100,
+      preserveQuality: false,
+    },
+    autoSaveHistory: true,
+    enableNotifications: true,
+    autoCompress: false,
+    qualityPreference: 'balanced',
+  };
 };
 
 export const saveAppSettings = (settings: AppSettings): void => {

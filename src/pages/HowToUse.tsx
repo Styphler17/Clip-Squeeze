@@ -1,4 +1,4 @@
-import { Upload, Settings, Download, Zap, FileVideo, Clock, HardDrive, Cpu, Menu, Play } from "lucide-react";
+import { Upload, Settings, Download, Zap, FileVideo, Clock, HardDrive, Cpu, Menu, Play, BarChart3, CheckCircle, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -7,38 +7,40 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { VideoCompressorSidebar } from "@/components/video-compressor/VideoCompressorSidebar";
 import { useNavigate } from "react-router-dom";
 
-const steps = [
+const compressionSteps = [
   {
     step: 1,
     title: "Upload Your Video",
-    description: "Drag and drop your video file or click to browse. Supports MP4, AVI, MOV, MKV, and more.",
+    description: "Use the Upload tab to drag and drop your video files or click to browse. Supports MP4, AVI, MOV, MKV, and more.",
     icon: Upload,
-    tips: ["Files up to 5GB are supported", "Multiple files can be processed at once", "All processing happens locally in your browser"]
+    tips: ["Files up to 10GB are supported", "Multiple files can be processed at once", "Preview your videos before compression", "All processing happens locally in your browser"]
   },
   {
     step: 2,
-    title: "Choose Compression Settings",
-    description: "Select from predefined presets or customize your own compression settings.",
+    title: "Configure Settings",
+    description: "Switch to the Settings tab to choose from predefined presets or customize your own compression settings.",
     icon: Settings,
-    tips: ["Start with 'Balanced' for best results", "Use 'Aggressive' for maximum size reduction", "Custom settings for advanced users"]
+    tips: ["Start with 'Balanced' for best results", "Use 'Aggressive' for maximum size reduction", "Custom settings for advanced users", "Enable format conversion if needed"]
   },
   {
     step: 3,
-    title: "Start Compression",
-    description: "Click compress and watch real-time progress with detailed statistics.",
+    title: "Monitor Progress",
+    description: "Click 'Start Compression' and switch to the Progress tab to watch real-time compression with detailed statistics.",
     icon: Zap,
-    tips: ["Processing time varies by file size", "Larger files may take several minutes", "Don't close the browser during compression"]
+    tips: ["Processing time varies by file size", "Larger files may take several minutes", "Don't close the browser during compression", "Cancel jobs if needed"]
   },
   {
     step: 4,
-    title: "Download Result",
-    description: "Download your compressed video with significant size reduction.",
+    title: "Review & Download",
+    description: "Check the Final Results tab to compare original vs compressed videos and download your results.",
     icon: Download,
-    tips: ["Compare original vs compressed file", "Check the quality before saving", "History is saved for future reference"]
+    tips: ["Side-by-side video previews", "Compare file sizes and quality", "Download compressed files", "History is saved for future reference"]
   }
 ];
 
-const presets = [
+
+
+const compressionPresets = [
   {
     name: "Aggressive",
     description: "Maximum compression, good for sharing",
@@ -83,7 +85,9 @@ const presets = [
   }
 ];
 
-const tips = [
+
+
+const compressionTips = [
   {
     icon: FileVideo,
     title: "Large File Processing",
@@ -106,12 +110,20 @@ const tips = [
   }
 ];
 
+
+
 function HowToUseContent() {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === "collapsed";
   const navigate = useNavigate();
 
   return (
-    <div className="flex-1 flex flex-col">
+    <main className={`flex-1 transition-all duration-300 ${
+      isCollapsed 
+        ? 'lg:ml-16 xl:ml-16 2xl:ml-16' 
+        : 'lg:ml-64 xl:ml-72 2xl:ml-80'
+    }`}>
+      <div className="flex-1 flex flex-col">
       {/* Mobile header */}
       <header className="h-14 border-b bg-background flex items-center px-4 lg:hidden">
         <Button 
@@ -127,9 +139,9 @@ function HowToUseContent() {
 
       <div className="flex-1 p-4 lg:p-6 space-y-8">
         <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">How to Use Video Compressor</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">How to Use Clip-Squeeze</h1>
         <p className="text-muted-foreground text-lg">
-          Learn how to compress your videos efficiently with our step-by-step guide
+          Learn how to compress your videos efficiently with our powerful compression tools
         </p>
         <div className="mt-4">
           <Button
@@ -143,88 +155,224 @@ function HowToUseContent() {
         </div>
       </div>
 
-      {/* Step-by-step guide */}
+      {/* Video Compression Section */}
       <section>
-        <h2 className="text-2xl font-semibold mb-6">Step-by-Step Guide</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {steps.map((step) => (
-            <Card key={step.step} className="relative">
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-video-primary text-white flex items-center justify-center font-bold">
-                    {step.step}
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2">
-                      <step.icon className="w-5 h-5" />
-                      {step.title}
-                    </CardTitle>
-                  </div>
-                </div>
+        <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <Zap className="w-6 h-6 text-video-primary" />
+          Video Compression with Tab Interface
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Our intuitive tab-based interface makes video compression simple and organized. Navigate through Upload, Settings, Progress, and Final Results tabs for a streamlined workflow.
+        </p>
+        
+        {/* Tab Interface Overview */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4">Tab Interface Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="border-video-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Upload className="w-5 h-5 text-video-primary" />
+                  Upload Tab
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground mb-4">{step.description}</p>
-                <div className="space-y-2">
-                  {step.tips.map((tip, index) => (
-                    <div key={`${step.step}-tip-${index}`} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-video-primary mt-2 flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">{tip}</span>
+                <p className="text-sm text-muted-foreground mb-3">Upload and preview your video files</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>• Drag & drop interface</p>
+                  <p>• File preview with details</p>
+                  <p>• Multiple file support</p>
+                  <p>• Format validation</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-video-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Settings className="w-5 h-5 text-video-primary" />
+                  Settings Tab
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">Configure compression settings and presets</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>• Predefined presets</p>
+                  <p>• Custom settings</p>
+                  <p>• Format conversion</p>
+                  <p>• Quality controls</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-video-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <BarChart3 className="w-5 h-5 text-video-primary" />
+                  Progress Tab
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">Monitor compression progress in real-time</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>• Live progress tracking</p>
+                  <p>• Job management</p>
+                  <p>• Cancel/retry options</p>
+                  <p>• Status updates</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-video-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CheckCircle className="w-5 h-5 text-video-primary" />
+                  Final Results Tab
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">Review and download compressed videos</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>• Side-by-side previews</p>
+                  <p>• Size comparison</p>
+                  <p>• Download options</p>
+                  <p>• Compression stats</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Compression Step-by-step guide */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4">Step-by-Step Compression Guide</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {compressionSteps.map((step) => (
+              <Card key={step.step} className="relative">
+                <CardHeader>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-video-primary text-white flex items-center justify-center font-bold">
+                      {step.step}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <step.icon className="w-5 h-5" />
+                        {step.title}
+                      </CardTitle>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">{step.description}</p>
+                  <div className="space-y-2">
+                    {step.tips.map((tip, index) => (
+                      <div key={`${step.step}-tip-${index}`} className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-video-primary mt-2 flex-shrink-0" />
+                        <span className="text-sm text-muted-foreground">{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Compression Presets */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4">Compression Presets Explained</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {compressionPresets.map((preset) => (
+              <Card key={preset.name}>
+                <CardHeader>
+                  <CardTitle className="text-lg">{preset.name}</CardTitle>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary">{preset.reduction} smaller</Badge>
+                    <Badge variant="outline">{preset.quality}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-3">{preset.description}</p>
+                  <div className="text-sm">
+                    <span className="font-medium">Best for:</span>
+                    <span className="text-muted-foreground ml-1">{preset.useCase}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
-      <Separator />
 
-      {/* Quality Presets */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-6">Compression Presets Explained</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {presets.map((preset) => (
-            <Card key={preset.name}>
-              <CardHeader>
-                <CardTitle className="text-lg">{preset.name}</CardTitle>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">{preset.reduction} smaller</Badge>
-                  <Badge variant="outline">{preset.quality}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-3">{preset.description}</p>
-                <div className="text-sm">
-                  <span className="font-medium">Best for:</span>
-                  <span className="text-muted-foreground ml-1">{preset.useCase}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <Separator />
 
       {/* Pro Tips */}
       <section>
         <h2 className="text-2xl font-semibold mb-6">Pro Tips & Best Practices</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {tips.map((tip, index) => (
-            <Card key={`tip-${tip.title}-${index}`}>
+        
+        {/* Compression Tips */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 text-video-primary">Compression Tips</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {compressionTips.map((tip, index) => (
+              <Card key={`compression-tip-${tip.title}-${index}`}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <tip.icon className="w-5 h-5 text-video-primary" />
+                    {tip.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">{tip.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Video Preview Features */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 text-video-primary">Video Preview Features</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <tip.icon className="w-5 h-5 text-video-primary" />
-                  {tip.title}
+                  <Eye className="w-5 h-5 text-video-primary" />
+                  Upload Preview
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">{tip.content}</p>
+                <p className="text-muted-foreground mb-3">Preview your videos before compression to ensure you've selected the right files.</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>• See video thumbnails and details</p>
+                  <p>• Check file sizes and formats</p>
+                  <p>• Verify video quality</p>
+                  <p>• Remove unwanted files</p>
+                </div>
               </CardContent>
             </Card>
-          ))}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-video-primary" />
+                  Results Comparison
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-3">Compare original and compressed videos side-by-side in the Final Results tab.</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>• Side-by-side video previews</p>
+                  <p>• File size comparisons</p>
+                  <p>• Quality assessment</p>
+                  <p>• Download both versions</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+
+
       </section>
 
       {/* Technical Information */}
@@ -249,19 +397,36 @@ function HowToUseContent() {
                   <p>• WebAssembly-powered compression</p>
                 </div>
               </div>
+              <div>
+                <h3 className="font-semibold mb-3">File Size Limits</h3>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>• Up to 10GB per file</p>
+                  <p>• Multiple files can be processed</p>
+                  <p>• Fast processing with WebAssembly</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-3">Security & Privacy</h3>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>• Files never leave your device</p>
+                  <p>• No data collection or tracking</p>
+                  <p>• Original files are preserved</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       </section>
       </div>
     </div>
+    </main>
   );
 }
 
 export default function HowToUse() {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
         <HowToUseContent />
       </div>

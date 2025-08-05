@@ -9,7 +9,7 @@ import { VideoPreview } from "@/components/video-compressor/VideoPreview";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, Zap, Menu, Eye } from "lucide-react";
+import { Play, Zap, Menu, Eye, Upload, Settings, BarChart3, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addToHistory } from "@/lib/storage";
 import { compressVideo, convertVideoFormat, isFormatConversionSupported, ConversionProgress } from "@/lib/videoProcessor";
@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileVideo, faDownload } from "@fortawesome/free-solid-svg-icons";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function VideoCompressorContent() {
   const { toggleSidebar } = useSidebar();
@@ -34,6 +35,7 @@ function VideoCompressorContent() {
   });
   const [compressionJobs, setCompressionJobs] = useState<CompressionJob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState("upload");
   const progressIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
@@ -121,28 +123,39 @@ function VideoCompressorContent() {
   }, [toast, isMobile]);
 
   const startJobProcessing = useCallback(async (jobId: string) => {
-    setCompressionJobs(prev => prev.map(job =>
-      job.id === jobId
-        ? { ...job, status: 'processing' as const, startTime: Date.now() }
-        : job
-    ));
-
-    const progressInterval = setInterval(() => {
-      setCompressionJobs(prev => {
-        const updated = prev.map(job => {
-          if (job.id === jobId && job.status === 'processing') {
-            const newProgress = Math.min(job.progress + Math.random() * 10, 100);
-            if (newProgress >= 100) {
-              // Clear the interval immediately to prevent memory leaks
-              try {
-                clearInterval(progressInterval);
-              } catch (error) {
-                console.warn('Error clearing progress interval:', error);
-              }
-              
-              (async () => {
+    // Get the current job to avoid stale closure issues
+    setCompressionJobs(prev => {
+      const currentJob = prev.find(j => j.id === jobId);
+      if (!currentJob || !currentJob.file) {
+        console.error('Job or file not found:', jobId);
+        return prev; // Return unchanged state
+      }
+      
+      // Update job status to processing
+      const updatedJobs = prev.map(job =>
+        job.id === jobId
+          ? { ...job, status: 'processing' as const, startTime: Date.now() }
+          : job
+      );
+      
+      // Start the progress interval
+      const progressInterval = setInterval(() => {
+        setCompressionJobs(current => {
+          const updated = current.map(job => {
+            if (job.id === jobId && job.status === 'processing') {
+              const newProgress = Math.min(job.progress + Math.random() * 10, 100);
+              if (newProgress >= 100) {
+                // Clear the interval immediately to prevent memory leaks
                 try {
-                  if (!job.file) throw new Error("No file found for this job.");
+                  clearInterval(progressInterval);
+                } catch (error) {
+                  console.warn('Error clearing progress interval:', error);
+                }
+                
+                // Process completion
+                (async () => {
+                  try {
+                    if (!job.file) throw new Error("No file found for this job.");
                   
                   let finalBlob: Blob;
                   let finalFileName = job.file.name;
@@ -236,11 +249,14 @@ function VideoCompressorContent() {
                     outputFileName: finalFileName
                   };
                   
-                  setCompressionJobs(prev => prev.map(j => 
-                    j.id === jobId ? completedJob : j
-                  ));
-                  
-                  addToHistory({
+                                     setCompressionJobs(prev => prev.map(j => 
+                     j.id === jobId ? completedJob : j
+                   ));
+                   
+                   // Switch to results tab when compression completes
+                   setActiveTab("results");
+                   
+                   addToHistory({
                     fileName: job.file.name,
                     originalSize: job.originalSize,
                     compressedSize: finalCompressedSize,
@@ -271,10 +287,16 @@ function VideoCompressorContent() {
         return updated;
       });
     }, 200);
-
-    // Store the interval ID for cleanup
-    return progressInterval;
-  }, [toast]);
+    
+    // Store the interval for cleanup
+    progressIntervalsRef.current.set(jobId, progressInterval);
+    
+    return updatedJobs; // Return the updated jobs array
+  });
+  
+  // Return the interval ID for compatibility with existing code
+  return progressIntervalsRef.current.get(jobId);
+}, [toast]);
 
   const simulateCompression = useCallback((jobs: CompressionJob[]) => {
     const intervals: NodeJS.Timeout[] = [];
@@ -337,10 +359,11 @@ function VideoCompressorContent() {
       }
     }));
     
-    setCompressionJobs(prev => [...prev, ...newJobs]);
-    setSelectedFiles([]);
-    setIsProcessing(true);
-    simulateCompression(newJobs);
+         setCompressionJobs(prev => [...prev, ...newJobs]);
+     setSelectedFiles([]);
+     setIsProcessing(true);
+     setActiveTab("progress"); // Switch to progress tab when compression starts
+     simulateCompression(newJobs);
     
     toast({
       title: "Compression Started",
@@ -490,7 +513,7 @@ function VideoCompressorContent() {
             onClick={handleStartCompression}
             disabled={selectedFiles.length === 0 || isProcessing}
             size={isMobile ? "default" : "lg"}
-            className={`${selectedFiles.length > 0 ? "bg-red-500 hover:bg-red-600" : ""} ${isMobile ? 'w-full sm:w-auto' : 'xl:px-8 xl:py-3 2xl:px-10 2xl:py-4'} text-button-lg`}
+            className={`${selectedFiles.length > 0 ? "bg-video-primary hover:bg-video-primary-dark" : ""} ${isMobile ? 'w-full sm:w-auto' : 'xl:px-8 xl:py-3 2xl:px-10 2xl:py-4'} text-button-lg`}
           >
             <Zap className="w-4 h-4 mr-2" />
             Start Compression
@@ -510,144 +533,235 @@ function VideoCompressorContent() {
           {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
         </span>
       </div>
-      {/* Main Content */}
-      <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'}`}>
-        {/* Left Column - File Upload, Progress Tracking, and Previews */}
-        <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-3 xl:col-span-4 2xl:col-span-5'} space-y-6`}>
-          {/* File Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-title">
-                <Play className="w-5 h-5" />
-                Upload Videos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DropZone onFilesSelected={handleFilesSelected} />
-            </CardContent>
-          </Card>
+             {/* Main Content with Tabs */}
+               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="upload" className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Upload
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="progress" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Progress
+            </TabsTrigger>
+            <TabsTrigger value="results" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Final Results
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Selected Files Preview */}
-          {selectedFiles.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-card-title">
-                  <Eye className="w-5 h-5" />
-                  Selected Files Preview ({selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {selectedFiles.map((file, index) => {
-                    console.log('Rendering file:', index, file.name);
-                    return (
-                      <div
-                        key={`${file.name}-${file.lastModified}`}
-                        className="border rounded-lg p-4"
-                      >
-                        <div className={`flex items-center justify-between mb-2 ${isMobile ? 'flex-col items-start gap-2' : ''}`}>
-                          <span className={`font-medium truncate text-filename ${isMobile ? 'w-full' : 'max-w-[50%]'}`}>{file.name}</span>
-                          <span className={`text-muted-foreground flex-shrink-0 text-label ${isMobile ? '' : ''}`}>
-                            {(file.size / (1024 * 1024)).toFixed(2)} MB
-                          </span>
-                        </div>
-                        <VideoPreview
-                          originalFile={file}
-                          originalSize={file.size}
-                          onDownload={() => {}}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+         {/* Upload Tab */}
+         <TabsContent value="upload" className="space-y-6">
+           {/* File Upload */}
+           <Card>
+             <CardHeader>
+               <CardTitle className="flex items-center gap-2 text-card-title">
+                 <Play className="w-5 h-5" />
+                 Upload Videos
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+               <DropZone onFilesSelected={handleFilesSelected} />
+             </CardContent>
+           </Card>
 
-          {/* Progress Tracking */}
-          <ProgressTracker
-            jobs={compressionJobs}
-            onCancelJob={handleCancelJob}
-            onDownload={handleDownload}
-            onRetry={handleRetry}
-          />
+           {/* Selected Files Preview */}
+           {selectedFiles.length > 0 && (
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2 text-card-title">
+                   <Eye className="w-5 h-5" />
+                   Selected Files Preview ({selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''})
+                 </CardTitle>
+               </CardHeader>
+               <CardContent>
+                 <div className="space-y-4">
+                   {selectedFiles.map((file, index) => {
+                     console.log('Rendering file:', index, file.name);
+                     return (
+                       <div
+                         key={`${file.name}-${file.lastModified}`}
+                         className="border rounded-lg p-4"
+                       >
+                         <div className={`flex items-center justify-between mb-2 ${isMobile ? 'flex-col items-start gap-2' : ''}`}>
+                           <span className={`font-medium truncate text-filename ${isMobile ? 'w-full' : 'max-w-[50%]'}`}>{file.name}</span>
+                           <span className={`text-muted-foreground flex-shrink-0 text-label ${isMobile ? '' : ''}`}>
+                             {(file.size / (1024 * 1024)).toFixed(2)} MB
+                           </span>
+                         </div>
+                         <VideoPreview
+                           originalFile={file}
+                           originalSize={file.size}
+                           onDownload={() => {}}
+                         />
+                       </div>
+                     );
+                   })}
+                 </div>
+               </CardContent>
+             </Card>
+           )}
+         </TabsContent>
 
-          {/* Completed Jobs with Download Options */}
-          {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).map((job) => (
-            <Card key={job.id} className="border-video-success">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-card-title">
-                  <Eye className="w-5 h-5" />
-                  Compression Complete
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* File Info */}
-                  <div className="compression-file-info">
-                    <div className="compression-file-name">
-                      <FontAwesomeIcon icon={faFileVideo} className="text-video-primary flex-shrink-0" />
-                      <span className="font-medium text-filename truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px] xl:max-w-[500px] 2xl:max-w-[600px]">{job.file?.name || 'Unknown file'}</span>
-                    </div>
-                    <Button
-                      onClick={() => handleDownload(job.id)}
-                      size="sm"
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white text-button-sm compression-download-btn flex-shrink-0 ml-2"
-                    >
-                      <FontAwesomeIcon icon={faDownload} className="mr-2" />
-                      Download
-                    </Button>
+                   {/* Progress Tab */}
+          <TabsContent value="progress" className="space-y-6">
+            {/* Progress Tracking */}
+            <ProgressTracker
+              jobs={compressionJobs}
+              onCancelJob={handleCancelJob}
+              onDownload={handleDownload}
+              onRetry={handleRetry}
+            />
+          </TabsContent>
+
+                     {/* Final Results Tab */}
+           <TabsContent value="results" className="space-y-6">
+             {/* Completed Jobs with Download Options */}
+             {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).map((job) => (
+               <Card key={job.id} className="border-video-success">
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2 text-card-title">
+                     <CheckCircle className="w-5 h-5" />
+                     Compression Complete
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent>
+                   <div className="space-y-6">
+                     {/* File Info */}
+                     <div className="compression-file-info">
+                       <div className="compression-file-name">
+                         <FontAwesomeIcon icon={faFileVideo} className="text-video-primary flex-shrink-0" />
+                         <span className="font-medium text-filename truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px] xl:max-w-[500px] 2xl:max-w-[600px]">{job.file?.name || 'Unknown file'}</span>
+                       </div>
+                                               <Button
+                          onClick={() => handleDownload(job.id)}
+                          size="sm"
+                          className="bg-video-primary hover:bg-video-primary-dark text-white text-button-sm compression-download-btn flex-shrink-0 ml-2"
+                        >
+                         <FontAwesomeIcon icon={faDownload} className="mr-2" />
+                         Download
+                       </Button>
+                     </div>
+
+                     {/* Video Preview Section */}
+                     <div className="space-y-4">
+                       <h4 className="text-sm font-medium text-muted-foreground">Video Preview</h4>
+                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                         {/* Original Video Preview */}
+                         <div className="space-y-2">
+                           <div className="flex items-center gap-2">
+                             <span className="text-xs font-medium text-muted-foreground">Original</span>
+                             <Badge variant="outline" className="text-xs">
+                               {formatBytes(job.originalSize || 0)}
+                             </Badge>
+                           </div>
+                           <div className="border rounded-lg overflow-hidden">
+                             <VideoPreview
+                               originalFile={job.file}
+                               originalSize={job.originalSize || 0}
+                               onDownload={() => {}}
+                             />
+                           </div>
+                         </div>
+
+                         {/* Compressed Video Preview */}
+                         <div className="space-y-2">
+                           <div className="flex items-center gap-2">
+                             <span className="text-xs font-medium text-muted-foreground">Compressed</span>
+                             <Badge variant="secondary" className="text-xs bg-video-success/10 text-video-success">
+                               {formatBytes(job.compressedSize || 0)}
+                             </Badge>
+                             <Badge variant="secondary" className="text-xs bg-video-success/10 text-video-success">
+                               {job.originalSize && job.compressedSize ? 
+                                 ((1 - job.compressedSize / job.originalSize) * 100).toFixed(1) : 
+                                 '0.0'
+                               }% saved
+                             </Badge>
+                           </div>
+                           <div className="border rounded-lg overflow-hidden border-video-success/20">
+                             <VideoPreview
+                               originalFile={new File([job.outputBlob!], job.outputFileName || 'compressed_video', { type: job.outputBlob!.type })}
+                               originalSize={job.compressedSize || 0}
+                               onDownload={() => handleDownload(job.id)}
+                             />
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Compression Stats */}
+                     <div className="compression-stats text-label mt-4">
+                       <div className="compression-stat-row">
+                         <span className="compression-stat-label">Original Size:</span>
+                         <span className="compression-stat-value">{formatBytes(job.originalSize || 0)}</span>
+                       </div>
+                       <div className="compression-stat-row">
+                         <span className="compression-stat-label">Compressed Size:</span>
+                         <span className="compression-stat-value text-video-success">{formatBytes(job.compressedSize || 0)}</span>
+                       </div>
+                       <div className="compression-stat-row">
+                         <span className="compression-stat-label">Size Reduction:</span>
+                         <span className="compression-stat-value">{formatBytes((job.originalSize || 0) - (job.compressedSize || 0))}</span>
+                       </div>
+                       <div className="compression-stat-row">
+                         <span className="compression-stat-label">Compression Ratio:</span>
+                         <Badge variant="secondary" className="bg-video-success/10 text-video-success compression-download-btn">
+                           {job.originalSize && job.compressedSize ? 
+                             ((1 - job.compressedSize / job.originalSize) * 100).toFixed(1) : 
+                             '0.0'
+                           }% saved
+                         </Badge>
+                       </div>
+                     </div>
+                   </div>
+                 </CardContent>
+               </Card>
+             ))}
+            
+            {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length === 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-card-title">
+                    <CheckCircle className="w-5 h-5" />
+                    Final Results
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      No completed compressions yet. Start compressing videos to see results here.
+                    </p>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-                  {/* Compression Stats */}
-                  <div className="compression-stats text-label mt-4">
-                    <div className="compression-stat-row">
-                      <span className="compression-stat-label">Original Size:</span>
-                      <span className="compression-stat-value">{formatBytes(job.originalSize || 0)}</span>
-                    </div>
-                    <div className="compression-stat-row">
-                      <span className="compression-stat-label">Compressed Size:</span>
-                      <span className="compression-stat-value text-video-success">{formatBytes(job.compressedSize || 0)}</span>
-                    </div>
-                    <div className="compression-stat-row">
-                      <span className="compression-stat-label">Size Reduction:</span>
-                      <span className="compression-stat-value">{formatBytes((job.originalSize || 0) - (job.compressedSize || 0))}</span>
-                    </div>
-                    <div className="compression-stat-row">
-                      <span className="compression-stat-label">Compression Ratio:</span>
-                      <Badge variant="secondary" className="bg-video-success/10 text-video-success compression-download-btn">
-                        {job.originalSize && job.compressedSize ? 
-                          ((1 - job.compressedSize / job.originalSize) * 100).toFixed(1) : 
-                          '0.0'
-                        }% saved
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        {/* Right Column - Compression Settings */}
-        <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-1 xl:col-span-1 2xl:col-span-1'} space-y-6`}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-title">
-                <Zap className="w-5 h-5" />
-                Compression Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CompressionSettings
-                selectedPreset={selectedPreset}
-                onPresetChange={setSelectedPreset}
-                customSettings={customSettings}
-                onCustomSettingsChange={setCustomSettings}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+         {/* Settings Tab */}
+         <TabsContent value="settings" className="space-y-6">
+           <Card>
+             <CardHeader>
+               <CardTitle className="flex items-center gap-2 text-card-title">
+                 <Zap className="w-5 h-5" />
+                 Compression Settings
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+               <CompressionSettings
+                 selectedPreset={selectedPreset}
+                 onPresetChange={setSelectedPreset}
+                 customSettings={customSettings}
+                 onCustomSettingsChange={setCustomSettings}
+               />
+             </CardContent>
+           </Card>
+         </TabsContent>
+       </Tabs>
     </div>
   );
 }
@@ -658,7 +772,9 @@ export default function VideoCompressor() {
       <VideoCompressorSEO />
       <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
-        <VideoCompressorContent />
+        <main className="flex-1 overflow-hidden ml-0 lg:ml-64 xl:ml-72 2xl:ml-80">
+          <VideoCompressorContent />
+        </main>
       </div>
     </SidebarProvider>
   );

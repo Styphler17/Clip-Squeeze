@@ -1277,3 +1277,127 @@ All colors MUST be HSL.
     color-scheme: dark;
   }
 }
+
+/* Extra Large Desktop Styles (1920px and above) */
+@media (min-width: 1920px) {
+  .text-responsive-xl {
+    font-size: clamp(3rem, 5vw, 4rem);
+  }
+  
+  .text-responsive-lg {
+    font-size: clamp(2rem, 3.5vw, 3rem);
+  }
+  
+  .text-responsive-md {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+  }
+  
+  .text-responsive-sm {
+    font-size: clamp(1.125rem, 2vw, 1.5rem);
+  }
+  
+  .text-card-title {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+  }
+  
+  .text-filename {
+    font-size: clamp(1rem, 1.75vw, 1.25rem);
+  }
+  
+  .text-label {
+    font-size: clamp(0.875rem, 1.25vw, 1rem);
+  }
+  
+  .video-container {
+    max-width: 1000px;
+  }
+  
+  .video-player {
+    max-height: 700px;
+  }
+  
+  .compression-file-info {
+    gap: 2rem;
+  }
+  
+  .compression-file-name {
+    max-width: 800px;
+  }
+  
+  .compression-stats {
+    gap: 2rem;
+  }
+  
+  .compression-stat-row {
+    gap: 2rem;
+  }
+  
+  .card {
+    padding: 2.5rem;
+  }
+  
+  .grid {
+    gap: 2.5rem;
+  }
+  
+  .text-button-lg {
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
+    padding: 1.25rem 2.5rem;
+  }
+  
+  .text-button-md {
+    font-size: clamp(1.125rem, 1.5vw, 1.5rem);
+    padding: 1rem 2rem;
+  }
+  
+  .text-button-sm {
+    font-size: clamp(1rem, 1.25vw, 1.25rem);
+    padding: 0.875rem 1.75rem;
+  }
+  
+  .text-stats-lg {
+    font-size: clamp(1.75rem, 2.5vw, 2.5rem);
+  }
+  
+  .text-stats-md {
+    font-size: clamp(1.5rem, 2vw, 2rem);
+  }
+  
+  .text-stats-sm {
+    font-size: clamp(1.125rem, 1.5vw, 1.5rem);
+  }
+  
+  .container {
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 2.5rem;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 2rem;
+  }
+  
+  .sidebar {
+    width: 380px;
+  }
+  
+  .card-header {
+    padding: 2.5rem 2.5rem 1.25rem;
+  }
+  
+  .card-content {
+    padding: 1.25rem 2.5rem 2.5rem;
+  }
+  
+  .tabs-list {
+    gap: 2rem;
+  }
+  
+  .tabs-trigger {
+    padding: 1.25rem 2rem;
+    font-size: 1.125rem;
+  }
+}

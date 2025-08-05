@@ -24,7 +24,8 @@ import {
 } from "@/lib/storage";
 
 function HistoryContent() {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === "collapsed";
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [history, setHistory] = useState<CompressionHistoryItem[]>([]);
@@ -80,7 +81,12 @@ function HistoryContent() {
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <main className={`flex-1 transition-all duration-300 ${
+      isCollapsed 
+        ? 'lg:ml-16 xl:ml-16 2xl:ml-16' 
+        : 'lg:ml-64 xl:ml-72 2xl:ml-80'
+    }`}>
+      <div className="flex-1 flex flex-col">
       {/* Mobile header */}
       <header className="h-14 border-b bg-background flex items-center px-4 lg:hidden">
         <Button 
@@ -226,13 +232,14 @@ function HistoryContent() {
       )}
       </div>
     </div>
+    </main>
   );
 }
 
 export default function History() {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
         <HistoryContent />
       </div>

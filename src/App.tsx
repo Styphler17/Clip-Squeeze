@@ -6,10 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { BackToTop } from "@/components/ui/back-to-top";
 import { Suspense, lazy } from "react";
+import { ThemeProvider } from "next-themes";
 
 // Lazy load components for better performance
 const VideoCompressor = lazy(() => import("./pages/VideoCompressor"));
-const VideoRepair = lazy(() => import("./pages/VideoRepair"));
 const History = lazy(() => import("./pages/History"));
 const HowToUse = lazy(() => import("./pages/HowToUse"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -30,27 +30,28 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ErrorBoundary>
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              <Route path="/" element={<VideoCompressor />} />
-              <Route path="/repair" element={<VideoRepair />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/guide" element={<HowToUse />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/about" element={<About />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-          <BackToTop />
-        </ErrorBoundary>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/" element={<VideoCompressor />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/guide" element={<HowToUse />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/about" element={<About />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+            <BackToTop />
+          </ErrorBoundary>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

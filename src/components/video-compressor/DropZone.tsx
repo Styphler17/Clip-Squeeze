@@ -152,6 +152,11 @@ export const DropZone = memo(({
           return prev + 10;
         });
       }, 50);
+      
+      // Clean up interval after 5 seconds to prevent memory leaks
+      setTimeout(() => {
+        clearInterval(progressInterval);
+      }, 5000);
     }
   }, [validateFiles, onFilesSelected]);
 
