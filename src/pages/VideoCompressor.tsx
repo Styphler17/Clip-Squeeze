@@ -589,10 +589,18 @@ function VideoCompressorContent() {
       });
 
       // Create a ZIP file using JSZip
-      const JSZip = (await import('jszip')).default;
+      let JSZip;
+      try {
+        JSZip = (await import('jszip')).default;
+      } catch (importError) {
+        console.error('Failed to import JSZip:', importError);
+        throw new Error('JSZip library failed to load. Please refresh the page and try again.');
+      }
+      
       const zip = new JSZip();
       
       // Add each compressed file to the ZIP
+      let addedFiles = 0;
       completedJobs.forEach((job, index) => {
         if (!job.outputBlob) return; // Skip if no output blob
         
@@ -621,11 +629,30 @@ function VideoCompressorContent() {
           filename = `${nameWithoutExt}_compressed${extension}`;
         }
         
-        zip.file(filename, job.outputBlob);
+        try {
+          zip.file(filename, job.outputBlob);
+          addedFiles++;
+          console.log(`Added to ZIP: ${filename} (${(job.outputBlob.size / (1024 * 1024)).toFixed(1)}MB)`);
+        } catch (addError) {
+          console.error(`Failed to add ${filename} to ZIP:`, addError);
+        }
       });
+      
+      if (addedFiles === 0) {
+        throw new Error('No files could be added to the ZIP archive.');
+      }
+      
+      console.log(`Successfully added ${addedFiles} files to ZIP`);
 
       // Generate the ZIP file
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      console.log('Generating ZIP archive...');
+      const zipBlob = await zip.generateAsync({ 
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+      
+      console.log(`ZIP generated successfully: ${(zipBlob.size / (1024 * 1024)).toFixed(1)}MB`);
       
       // Download the ZIP file
       const url = URL.createObjectURL(zipBlob);
@@ -638,7 +665,7 @@ function VideoCompressorContent() {
         a.click();
         toast({
           title: "ZIP Download Started",
-          description: `Downloading ${completedJobs.length} compressed files as ZIP archive.`,
+          description: `Downloading ${addedFiles} compressed files as ZIP archive (${(zipBlob.size / (1024 * 1024)).toFixed(1)}MB).`,
         });
       } finally {
         setTimeout(() => {
@@ -648,11 +675,46 @@ function VideoCompressorContent() {
       
     } catch (error) {
       console.error('ZIP creation error:', error);
-      toast({
-        title: "ZIP Creation Failed",
-        description: "Unable to create ZIP archive. Please try individual downloads.",
-        variant: "destructive",
-      });
+      
+      // Try fallback method - create a simple archive
+      try {
+        toast({
+          title: "ZIP Failed, Trying Alternative Method",
+          description: "Attempting to create archive using alternative method...",
+        });
+        
+        // Fallback: Create a simple concatenated file
+        const validBlobs = completedJobs.map(job => job.outputBlob).filter((blob): blob is Blob => blob !== undefined);
+        const fallbackBlob = new Blob(validBlobs, { 
+          type: 'application/octet-stream' 
+        });
+        
+        const url = URL.createObjectURL(fallbackBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `compressed_videos_${new Date().toISOString().split('T')[0]}.bin`;
+        a.style.display = 'none';
+        
+        try {
+          a.click();
+          toast({
+            title: "Alternative Download Started",
+            description: `Downloading ${completedJobs.length} files as single archive. Note: This is not a ZIP file.`,
+          });
+        } finally {
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 100);
+        }
+        
+      } catch (fallbackError) {
+        console.error('Fallback method also failed:', fallbackError);
+        toast({
+          title: "Archive Creation Failed",
+          description: "Unable to create archive. Please use individual downloads.",
+          variant: "destructive",
+        });
+      }
     }
   }, [compressionJobs, toast]);
 
