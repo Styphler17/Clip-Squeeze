@@ -77,6 +77,13 @@ export const VideoPreview = memo(({
   // Generate thumbnail from video file
   const generateThumbnail = useCallback((file: File | Blob, isCompressed: boolean = false): Promise<string> => {
     return new Promise((resolve) => {
+      console.log(`Generating thumbnail for ${isCompressed ? 'compressed' : 'original'} video:`, {
+        type: file.type,
+        size: file.size,
+        isFile: file instanceof File,
+        isBlob: file instanceof Blob
+      });
+      
       const video = document.createElement('video');
       video.muted = true;
       video.crossOrigin = 'anonymous';
@@ -86,16 +93,18 @@ export const VideoPreview = memo(({
       const timeoutId = setTimeout(() => {
         console.warn('Thumbnail generation timed out, using fallback');
         if (isCompressed) {
-          setCompressedThumbnail('/placeholder.svg'); // Fallback to placeholder
+          setCompressedThumbnail('/placeholder.svg');
         } else {
           setOriginalThumbnail('/placeholder.svg');
         }
         resolve('/placeholder.svg');
-      }, 10000); // 10 second timeout
+      }, 15000); // Increased to 15 seconds for large files
       
       video.onloadeddata = () => {
         try {
           clearTimeout(timeoutId);
+          console.log('Video loaded successfully for thumbnail generation');
+          
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
@@ -119,6 +128,7 @@ export const VideoPreview = memo(({
           
           // Convert to data URL
           const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+          console.log('Thumbnail generated successfully:', thumbnailUrl.substring(0, 50) + '...');
           
           if (isCompressed) {
             setCompressedThumbnail(thumbnailUrl);
@@ -140,9 +150,9 @@ export const VideoPreview = memo(({
         }
       };
       
-      video.onerror = () => {
+      video.onerror = (error) => {
         clearTimeout(timeoutId);
-        console.warn('Video load failed for thumbnail generation, using fallback');
+        console.warn('Video load failed for thumbnail generation:', error);
         // Use fallback thumbnail
         if (isCompressed) {
           setCompressedThumbnail('/placeholder.svg');
@@ -192,6 +202,13 @@ export const VideoPreview = memo(({
 
   // Create URLs only once when component mounts or when files change
   React.useEffect(() => {
+    console.log('VideoPreview useEffect triggered:', {
+      originalFile: originalFile.name,
+      compressedBlob: compressedBlob ? 'exists' : 'none',
+      originalSize: originalFile.size,
+      compressedSize: compressedBlob?.size
+    });
+    
     const newOriginalUrl = URL.createObjectURL(originalFile);
     setOriginalUrl(newOriginalUrl);
 
@@ -211,45 +228,64 @@ export const VideoPreview = memo(({
       });
     }
 
-    // Generate thumbnails
-    generateThumbnail(originalFile, false);
-    if (compressedBlob) {
-      // Try to generate thumbnail from compressed blob
-      generateThumbnail(compressedBlob, true).catch(() => {
-        // If compressed blob thumbnail generation fails, try to create a fallback
-        console.log('Compressed blob thumbnail generation failed, creating fallback');
-        // Create a simple fallback thumbnail using canvas
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = 320;
-          canvas.height = 180;
-          const ctx = canvas.getContext('2d');
-          
-          if (ctx) {
-            // Create a simple gradient background
-            const gradient = ctx.createLinearGradient(0, 0, 320, 180);
-            gradient.addColorStop(0, '#3b82f6');
-            gradient.addColorStop(1, '#1d4ed8');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 320, 180);
+    // Generate thumbnails with better error handling
+    const generateThumbnails = async () => {
+      try {
+        // Generate original thumbnail
+        console.log('Generating original thumbnail...');
+        await generateThumbnail(originalFile, false);
+        
+        if (compressedBlob) {
+          // Generate compressed thumbnail
+          console.log('Generating compressed thumbnail...');
+          try {
+            await generateThumbnail(compressedBlob, true);
+          } catch (compressedError) {
+            console.warn('Compressed blob thumbnail generation failed, creating fallback:', compressedError);
             
-            // Add text
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Compressed', 160, 90);
-            ctx.font = '16px Arial';
-            ctx.fillText('Video', 160, 120);
-            
-            const fallbackThumbnail = canvas.toDataURL('image/jpeg', 0.8);
-            setCompressedThumbnail(fallbackThumbnail);
+            // Create a programmatic fallback thumbnail
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = 320;
+              canvas.height = 180;
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                // Create a simple gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 320, 180);
+                gradient.addColorStop(0, '#3b82f6');
+                gradient.addColorStop(1, '#1d4ed8');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 320, 180);
+                
+                // Add text
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Compressed', 160, 90);
+                ctx.font = '16px Arial';
+                ctx.fillText('Video', 160, 120);
+                
+                const fallbackThumbnail = canvas.toDataURL('image/jpeg', 0.8);
+                console.log('Fallback thumbnail created successfully');
+                setCompressedThumbnail(fallbackThumbnail);
+              }
+            } catch (fallbackError) {
+              console.warn('Fallback thumbnail creation failed:', fallbackError);
+              setCompressedThumbnail('/placeholder.svg');
+            }
           }
-        } catch (error) {
-          console.warn('Fallback thumbnail creation failed:', error);
-          setCompressedThumbnail('/placeholder.svg');
         }
-      });
-    }
+      } catch (error) {
+        console.error('Error generating thumbnails:', error);
+        // Ensure we always have fallback thumbnails
+        if (!originalThumbnail) setOriginalThumbnail('/placeholder.svg');
+        if (compressedBlob && !compressedThumbnail) setCompressedThumbnail('/placeholder.svg');
+      }
+    };
+
+    // Generate thumbnails
+    generateThumbnails();
 
     // Cleanup URLs when component unmounts or when files change
     return () => {
@@ -262,7 +298,7 @@ export const VideoPreview = memo(({
         console.warn('Error revoking object URLs:', error);
       }
     };
-  }, [originalFile, compressedBlob, generateThumbnail]);
+  }, [originalFile, compressedBlob, generateThumbnail, originalThumbnail, compressedThumbnail]);
 
   // Handle PiP state changes
   React.useEffect(() => {
