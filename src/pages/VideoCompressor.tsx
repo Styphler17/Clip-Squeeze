@@ -138,221 +138,221 @@ function VideoCompressorContent() {
   }, [toast, isMobile]);
 
   const startJobProcessing = useCallback(async (jobId: string) => {
+    console.log(`startJobProcessing called for jobId: ${jobId}`);
+    
     // Get the current job to avoid stale closure issues
-    setCompressionJobs(prev => {
-      const currentJob = prev.find(j => j.id === jobId);
-      if (!currentJob || !currentJob.file) {
-        console.error('Job or file not found:', jobId);
-        return prev; // Return unchanged state
-      }
-      
-      // Update job status to processing
-      const updatedJobs = prev.map(job =>
-        job.id === jobId
-          ? { ...job, status: 'processing' as const, startTime: Date.now() }
-          : job
-      );
+    const currentJob = compressionJobs.find(j => j.id === jobId);
+    console.log(`Found job:`, currentJob);
+    
+    if (!currentJob || !currentJob.file) {
+      console.error('Job or file not found:', jobId);
+      return;
+    }
+    
+    // Update job status to processing
+    setCompressionJobs(prev => prev.map(job =>
+      job.id === jobId
+        ? { ...job, status: 'processing' as const, startTime: Date.now() }
+        : job
+    ));
 
-      // Start the progress interval
-      const progressInterval = setInterval(() => {
-        setCompressionJobs(current => {
-          const updated = current.map(job => {
-            if (job.id === jobId && job.status === 'processing') {
-              const newProgress = Math.min(job.progress + Math.random() * 10, 100);
-              if (newProgress >= 100) {
-                // Clear the interval immediately to prevent memory leaks
-                try {
-                  clearInterval(progressInterval);
-                } catch (error) {
-                  console.warn('Error clearing progress interval:', error);
-                }
-                
-                // Process completion
-                (async () => {
-                  try {
-                    if (!job.file) throw new Error("No file found for this job.");
-                   
-                    let finalBlob: Blob;
-                    let finalFileName = job.file.name;
-                   
-                    // Handle large files with chunked processing to avoid memory issues
-                    if (job.file.size > 2 * 1024 * 1024 * 1024) { // > 2GB
-                      console.log(`Processing large file: ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) with chunked processing`);
-                      
-                      try {
-                        // For large files, we need to avoid loading the entire file into memory
-                        // Use chunked reading to prevent memory issues
-                        const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
-                        const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
-                        
-                        // For very large files, create a compressed version using chunked processing
-                        const maxCompressedSize = Math.min(simulatedCompressedSize, 500 * 1024 * 1024); // Max 500MB
-                        const chunkSize = 100 * 1024 * 1024; // 100MB chunks
-                        
-                        // Read the first chunk to get video headers and create a valid file
-                        const firstChunk = job.file.slice(0, Math.min(chunkSize, job.file.size));
-                        const firstChunkBuffer = await firstChunk.arrayBuffer();
-                        
-                        // Create a compressed blob from the first chunk
-                        // This maintains video structure while avoiding memory issues
-                        const compressedData = new Uint8Array(firstChunkBuffer).slice(0, Math.max(maxCompressedSize, 1024 * 1024)); // At least 1MB
-                        
-                        // Create a proper video file with correct metadata for Windows thumbnail generation
-                        finalBlob = new Blob([compressedData], { 
-                          type: job.file.type || 'video/mp4'
-                        });
-                        
-                        console.log(`Large file processed successfully: ${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB compressed from ${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB`);
-                        
-                        // Update filename if format conversion was enabled
-                        if (job.settings.enableConversion && job.settings.outputFormat) {
-                          const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
-                          const newExtension = FORMAT_CONVERSION_MAP[job.settings.outputFormat as keyof typeof FORMAT_CONVERSION_MAP]?.extension || '.mp4';
-                          finalFileName = `${nameWithoutExt}_compressed${newExtension}`;
-                        } else {
-                          // Use compressed suffix for same format
-                          const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
-                          const extension = job.file.name.substring(job.file.name.lastIndexOf('.'));
-                          finalFileName = `${nameWithoutExt}_compressed${extension}`;
-                        }
-                        
-                        toast({
-                          title: "Large File Processed",
-                          description: `Successfully processed large file (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB) with chunked processing.`,
-                        });
-                        
-                      } catch (largeFileError) {
-                        console.error('Large file processing error:', largeFileError);
-                        
-                        if (largeFileError instanceof Error) {
-                          if (largeFileError.message.includes("memory") || largeFileError.message.includes("size") || largeFileError.message.includes("QuotaExceededError")) {
-                            toast({
-                              title: "Large File Processing Error",
-                              description: `File ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
-                              variant: "destructive",
-                            });
-                            setCompressionJobs(prev => prev.map(j => 
-                              j.id === jobId ? { ...j, status: 'error' as const, error: 'File too large for browser processing - try smaller file or split video' } : j
-                            ));
-                            return;
-                          }
-                        }
-                        
-                        // For other errors, show a generic error message
-                        toast({
-                          title: "Compression Failed",
-                          description: `Failed to process large file: ${largeFileError instanceof Error ? largeFileError.message : 'Unknown error'}`,
-                          variant: "destructive",
-                        });
-                        
-                        setCompressionJobs(prev => prev.map(j => 
-                          j.id === jobId ? { ...j, status: 'error' as const, error: 'Compression failed - file too large or corrupted' } : j
-                        ));
-                        return;
-                      }
-                    } else {
-                      // Standard processing for smaller files
-                      try {
-                        // Simulate video compression (like the working deployed version)
-                        toast({
-                          title: "Starting Compression",
-                          description: "Compressing video...",
-                        });
-                        
-                        // Create a simulated compressed blob (20-60% size reduction)
-                        const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
-                        const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
-                        
-                        // Create a simulated compressed blob by taking a portion of the original file
-                        // This maintains video structure for thumbnail generation
-                        const arrayBuffer = await job.file.arrayBuffer();
-                        const uint8Array = new Uint8Array(arrayBuffer);
-                        const maxSize = Math.max(simulatedCompressedSize, 1024 * 1024); // At least 1MB
-                        const compressedData = uint8Array.slice(0, maxSize);
-                        
-                        // Create a proper video file with correct metadata for Windows thumbnail generation
-                        finalBlob = new Blob([compressedData], { 
-                          type: job.file.type || 'video/mp4'
-                        });
-                        
-                        // Update filename if format conversion was enabled
-                        if (job.settings.enableConversion && job.settings.outputFormat) {
-                          const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
-                          const newExtension = FORMAT_CONVERSION_MAP[job.settings.outputFormat as keyof typeof FORMAT_CONVERSION_MAP]?.extension || '.mp4';
-                          finalFileName = `${nameWithoutExt}_compressed${newExtension}`;
-                        } else {
-                          // Use compressed suffix for same format
-                          const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
-                          const extension = job.file.name.substring(job.file.name.lastIndexOf('.'));
-                          finalFileName = `${nameWithoutExt}_compressed${extension}`;
-                        }
-                        
-                        toast({
-                          title: "Compression Complete",
-                          description: `Successfully compressed video (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB)`,
-                        });
-                      } catch (error) {
-                        throw error;
-                      }
-                    }
-                    
-                    const finalCompressedSize = finalBlob.size;
-                    const finalCompressionRatio = finalCompressedSize / job.originalSize;
-                    
-                    const completedJob = {
-                      ...job,
-                      status: 'completed' as const,
-                      progress: 100,
-                      endTime: Date.now(),
-                      compressedSize: finalBlob.size,
-                      outputBlob: finalBlob,
-                      outputFileName: finalFileName
-                    };
-                    
-                    setCompressionJobs(prev => prev.map(j => 
-                      j.id === jobId ? completedJob : j
-                    ));
-                    
-                    // Switch to results tab when compression completes
-                    setActiveTab("results");
-                    
-                    addToHistory({
-                      fileName: job.file.name,
-                      originalSize: job.originalSize,
-                      compressedSize: finalCompressedSize,
-                      compressionRatio: finalCompressionRatio * 100,
-                      preset: job.settings.preset,
-                      duration: "Unknown",
-                      status: 'completed',
-                      fileType: job.file.type,
-                      settings: job.settings
-                    });
-                  } catch (error) {
-                    toast({
-                      title: "Compression Failed",
-                      description: "An error occurred during compression. Please try again.",
-                      variant: "destructive",
-                    });
-                    setCompressionJobs(prev => prev.map(j => 
-                      j.id === jobId ? { ...j, status: 'error' as const, error: 'Compression failed' } : j
-                    ));
-                  }
-                })();
-                return { ...job, progress: newProgress };
+    // Start the progress interval
+    const progressInterval = setInterval(() => {
+      setCompressionJobs(current => {
+        const updated = current.map(job => {
+          if (job.id === jobId && job.status === 'processing') {
+            const newProgress = Math.min(job.progress + Math.random() * 10, 100);
+            if (newProgress >= 100) {
+              // Clear the interval immediately to prevent memory leaks
+              try {
+                clearInterval(progressInterval);
+              } catch (error) {
+                console.warn('Error clearing progress interval:', error);
               }
+              
+              // Process completion
+              (async () => {
+                try {
+                  if (!job.file) throw new Error("No file found for this job.");
+                 
+                  let finalBlob: Blob;
+                  let finalFileName = job.file.name;
+                 
+                  // Handle large files with chunked processing to avoid memory issues
+                  if (job.file.size > 2 * 1024 * 1024 * 1024) { // > 2GB
+                    console.log(`Processing large file: ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) with chunked processing`);
+                    
+                    try {
+                      // For large files, we need to avoid loading the entire file into memory
+                      // Use chunked reading to prevent memory issues
+                      const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
+                      const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
+                      
+                      // For very large files, create a compressed version using chunked processing
+                      const maxCompressedSize = Math.min(simulatedCompressedSize, 500 * 1024 * 1024); // Max 500MB
+                      const chunkSize = 100 * 1024 * 1024; // 100MB chunks
+                      
+                      // Read the first chunk to get video headers and create a valid file
+                      const firstChunk = job.file.slice(0, Math.min(chunkSize, job.file.size));
+                      const firstChunkBuffer = await firstChunk.arrayBuffer();
+                      
+                      // Create a compressed blob from the first chunk
+                      // This maintains video structure while avoiding memory issues
+                      const compressedData = new Uint8Array(firstChunkBuffer).slice(0, Math.max(maxCompressedSize, 1024 * 1024)); // At least 1MB
+                      
+                      // Create a proper video file with correct metadata for Windows thumbnail generation
+                      finalBlob = new Blob([compressedData], { 
+                        type: job.file.type || 'video/mp4'
+                      });
+                      
+                      console.log(`Large file processed successfully: ${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB compressed from ${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB`);
+                      
+                      // Update filename if format conversion was enabled
+                      if (job.settings.enableConversion && job.settings.outputFormat) {
+                        const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
+                        const newExtension = FORMAT_CONVERSION_MAP[job.settings.outputFormat as keyof typeof FORMAT_CONVERSION_MAP]?.extension || '.mp4';
+                        finalFileName = `${nameWithoutExt}_compressed${newExtension}`;
+                      } else {
+                        // Use compressed suffix for same format
+                        const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
+                        const extension = job.file.name.substring(job.file.name.lastIndexOf('.'));
+                        finalFileName = `${nameWithoutExt}_compressed${extension}`;
+                      }
+                      
+                      toast({
+                        title: "Large File Processed",
+                        description: `Successfully processed large file (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB) with chunked processing.`,
+                      });
+                      
+                    } catch (largeFileError) {
+                      console.error('Large file processing error:', largeFileError);
+                      
+                      if (largeFileError instanceof Error) {
+                        if (largeFileError.message.includes("memory") || largeFileError.message.includes("size") || largeFileError.message.includes("QuotaExceededError")) {
+                          toast({
+                            title: "Large File Processing Error",
+                            description: `File ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
+                            variant: "destructive",
+                          });
+                          setCompressionJobs(prev => prev.map(j => 
+                            j.id === jobId ? { ...j, status: 'error' as const, error: 'File too large for browser processing - try smaller file or split video' } : j
+                          ));
+                          return;
+                        }
+                      }
+                      
+                      // For other errors, show a generic error message
+                      toast({
+                        title: "Compression Failed",
+                        description: `Failed to process large file: ${largeFileError instanceof Error ? largeFileError.message : 'Unknown error'}`,
+                        variant: "destructive",
+                      });
+                      
+                      setCompressionJobs(prev => prev.map(j => 
+                        j.id === jobId ? { ...j, status: 'error' as const, error: 'Compression failed - file too large or corrupted' } : j
+                      ));
+                      return;
+                    }
+                  } else {
+                    // Standard processing for smaller files
+                    try {
+                      // Simulate video compression (like the working deployed version)
+                      toast({
+                        title: "Starting Compression",
+                        description: "Compressing video...",
+                      });
+                      
+                      // Create a simulated compressed blob (20-60% size reduction)
+                      const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
+                      const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
+                      
+                      // Create a simulated compressed blob by taking a portion of the original file
+                      // This maintains video structure for thumbnail generation
+                      const arrayBuffer = await job.file.arrayBuffer();
+                      const uint8Array = new Uint8Array(arrayBuffer);
+                      const maxSize = Math.max(simulatedCompressedSize, 1024 * 1024); // At least 1MB
+                      const compressedData = uint8Array.slice(0, maxSize);
+                      
+                      // Create a proper video file with correct metadata for Windows thumbnail generation
+                      finalBlob = new Blob([compressedData], { 
+                        type: job.file.type || 'video/mp4'
+                      });
+                      
+                                             // Update filename if format conversion was enabled
+                       if (job.settings.enableConversion && job.settings.outputFormat) {
+                         const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
+                         const newExtension = FORMAT_CONVERSION_MAP[job.settings.outputFormat as keyof typeof FORMAT_CONVERSION_MAP]?.extension || '.mp4';
+                         finalFileName = `${nameWithoutExt}_compressed${newExtension}`;
+                       } else {
+                        // Use compressed suffix for same format
+                        const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
+                        const extension = job.file.name.substring(job.file.name.lastIndexOf('.'));
+                        finalFileName = `${nameWithoutExt}_compressed${extension}`;
+                      }
+                      
+                      toast({
+                        title: "Compression Complete",
+                        description: `Successfully compressed video (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB)`,
+                      });
+                    } catch (error) {
+                      throw error;
+                    }
+                  }
+                 
+                  const finalCompressedSize = finalBlob.size;
+                  const finalCompressionRatio = finalCompressedSize / job.originalSize;
+                 
+                  const completedJob = {
+                    ...job,
+                    status: 'completed' as const,
+                    progress: 100,
+                    endTime: Date.now(),
+                    compressedSize: finalBlob.size,
+                    outputBlob: finalBlob,
+                    outputFileName: finalFileName
+                  };
+                 
+                  setCompressionJobs(prev => prev.map(j => 
+                    j.id === jobId ? completedJob : j
+                  ));
+                 
+                  // Switch to results tab when compression completes
+                  setActiveTab("results");
+                 
+                  addToHistory({
+                    fileName: job.file.name,
+                    originalSize: job.originalSize,
+                    compressedSize: finalCompressedSize,
+                    compressionRatio: finalCompressionRatio * 100,
+                    preset: job.settings.preset,
+                    duration: "Unknown",
+                    status: 'completed',
+                    fileType: job.file.type,
+                    settings: job.settings
+                  });
+                } catch (error) {
+                  toast({
+                    title: "Compression Failed",
+                    description: "An error occurred during compression. Please try again.",
+                    variant: "destructive",
+                  });
+                  setCompressionJobs(prev => prev.map(j => 
+                    j.id === jobId ? { ...j, status: 'error' as const, error: 'Compression failed' } : j
+                  ));
+                }
+              })();
               return { ...job, progress: newProgress };
             }
-            return job;
-          });
-          return updated;
+            return { ...job, progress: newProgress };
+          }
+          return job;
         });
-      }, 200);
+        return updated;
+      });
+    }, 200);
 
-      // Store the interval for cleanup
-      progressIntervalsRef.current.set(jobId, progressInterval);
-
-      return updatedJobs; // Return the updated jobs array
-    }, [toast]);
+    // Store the interval for cleanup
+    progressIntervalsRef.current.set(jobId, progressInterval);
 
     // Return the interval ID for compatibility with existing code
     return progressIntervalsRef.current.get(jobId);
@@ -362,13 +362,19 @@ function VideoCompressorContent() {
     const intervals: NodeJS.Timeout[] = [];
     
     jobs.forEach((job, index) => {
+      // Start the first job immediately, others with a small delay
+      const delay = index === 0 ? 0 : index * 500;
+      
       const interval = setTimeout(() => {
+        console.log(`Starting compression for job: ${job.id} (${job.file.name})`);
         startJobProcessing(job.id).then(intervalId => {
           if (intervalId) {
             intervals.push(intervalId);
           }
+        }).catch(error => {
+          console.error(`Error starting job ${job.id}:`, error);
         });
-      }, index * 1000);
+      }, delay);
       
       intervals.push(interval);
     });
@@ -423,7 +429,11 @@ function VideoCompressorContent() {
     setSelectedFiles([]);
     setIsProcessing(true);
     setActiveTab("progress"); // Switch to progress tab when compression starts
-    simulateCompression(newJobs);
+    
+    // Use setTimeout to ensure state is updated before starting compression
+    setTimeout(() => {
+      simulateCompression(newJobs);
+    }, 0);
     
     toast({
       title: "Compression Started",
