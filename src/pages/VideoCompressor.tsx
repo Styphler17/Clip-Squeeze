@@ -729,8 +729,10 @@ function VideoCompressorContent() {
                            </div>
                            <div className="border rounded-lg overflow-hidden border-video-success/20">
                              <VideoPreview
-                               originalFile={new File([job.outputBlob!], job.outputFileName || 'compressed_video', { type: job.outputBlob!.type })}
-                               originalSize={job.compressedSize || 0}
+                               originalFile={job.file}
+                               compressedBlob={job.outputBlob}
+                               originalSize={job.originalSize || 0}
+                               compressedSize={job.compressedSize || 0}
                                onDownload={() => handleDownload(job.id)}
                              />
                            </div>

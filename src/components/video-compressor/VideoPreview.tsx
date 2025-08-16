@@ -52,6 +52,8 @@ export const VideoPreview = memo(({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [originalUrl, setOriginalUrl] = useState<string>('');
   const [compressedUrl, setCompressedUrl] = useState<string>('');
+  const [originalThumbnail, setOriginalThumbnail] = useState<string>('');
+  const [compressedThumbnail, setCompressedThumbnail] = useState<string>('');
 
   // Check if Picture-in-Picture is supported (with SSR safety)
   const [isPiPSupported, setIsPiPSupported] = useState(false);
@@ -105,8 +107,24 @@ export const VideoPreview = memo(({
 
     let newCompressedUrl: string | undefined;
     if (compressedBlob) {
-      newCompressedUrl = URL.createObjectURL(compressedBlob);
+      // Ensure the compressed blob has proper video MIME type for thumbnail generation
+      const mimeType = compressedBlob.type || originalFile.type || 'video/mp4';
+      const enhancedBlob = new Blob([compressedBlob], { type: mimeType });
+      newCompressedUrl = URL.createObjectURL(enhancedBlob);
       setCompressedUrl(newCompressedUrl);
+      
+      console.log('Compressed video preview:', {
+        originalType: originalFile.type,
+        compressedType: compressedBlob.type,
+        enhancedType: mimeType,
+        compressedSize: compressedBlob.size
+      });
+    }
+
+    // Generate thumbnails
+    generateThumbnail(originalFile, false);
+    if (compressedBlob) {
+      generateThumbnail(compressedBlob, true);
     }
 
     // Cleanup URLs when component unmounts or when files change
@@ -120,7 +138,7 @@ export const VideoPreview = memo(({
         console.warn('Error revoking object URLs:', error);
       }
     };
-  }, [originalFile, compressedBlob]);
+  }, [originalFile, compressedBlob, generateThumbnail]);
 
   // Handle PiP state changes
   React.useEffect(() => {
@@ -246,6 +264,63 @@ export const VideoPreview = memo(({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Generate thumbnail from video file
+  const generateThumbnail = useCallback((file: File | Blob, isCompressed: boolean = false): Promise<string> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.crossOrigin = 'anonymous';
+      
+      video.onloadeddata = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            resolve('');
+            return;
+          }
+          
+          // Set canvas size for thumbnail
+          canvas.width = 320;
+          canvas.height = 180;
+          
+          // Draw video frame to canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert to data URL
+          const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+          
+          if (isCompressed) {
+            setCompressedThumbnail(thumbnailUrl);
+          } else {
+            setOriginalThumbnail(thumbnailUrl);
+          }
+          
+          resolve(thumbnailUrl);
+        } catch (error) {
+          console.warn('Thumbnail generation failed:', error);
+          resolve('');
+        }
+      };
+      
+      video.onerror = () => {
+        console.warn('Video load failed for thumbnail generation');
+        resolve('');
+      };
+      
+      // Set video source
+      if (file instanceof File) {
+        video.src = URL.createObjectURL(file);
+      } else {
+        video.src = URL.createObjectURL(file);
+      }
+      
+      // Load video
+      video.load();
+    });
+  }, []);
+
   const getCompressionRatio = () => {
     if (!compressedSize) return null;
     const ratio = ((originalSize - compressedSize) / originalSize) * 100;
@@ -294,6 +369,21 @@ export const VideoPreview = memo(({
               <div className="text-center">
                 <div className="loading-spinner mb-4" />
                 <p className="text-sm text-muted-foreground">Loading video...</p>
+                {/* Show thumbnail while loading */}
+                {currentVideo === 'original' && originalThumbnail && (
+                  <img 
+                    src={originalThumbnail} 
+                    alt="Video thumbnail" 
+                    className="w-full h-32 object-cover rounded-lg mt-2"
+                  />
+                )}
+                {currentVideo === 'compressed' && compressedThumbnail && (
+                  <img 
+                    src={compressedThumbnail} 
+                    alt="Compressed video thumbnail" 
+                    className="w-full h-32 object-cover rounded-lg mt-2"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -307,6 +397,21 @@ export const VideoPreview = memo(({
                   className="w-8 h-8 text-destructive mb-2" 
                 />
                 <p className="text-sm text-destructive">Failed to load video</p>
+                {/* Show thumbnail on error */}
+                {currentVideo === 'original' && originalThumbnail && (
+                  <img 
+                    src={originalThumbnail} 
+                    alt="Video thumbnail" 
+                    className="w-full h-32 object-cover rounded-lg mt-2"
+                  />
+                )}
+                {currentVideo === 'compressed' && compressedThumbnail && (
+                  <img 
+                    src={compressedThumbnail} 
+                    alt="Compressed video thumbnail" 
+                    className="w-full h-32 object-cover rounded-lg mt-2"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -443,6 +548,16 @@ export const VideoPreview = memo(({
               <FontAwesomeIcon icon={faFileAlt} className="w-3 h-3" />
               File Details
             </h4>
+            {/* Original Video Thumbnail */}
+            {originalThumbnail && (
+              <div className="mb-2">
+                <img 
+                  src={originalThumbnail} 
+                  alt="Original video thumbnail" 
+                  className="w-full h-24 object-cover rounded-lg border"
+                />
+              </div>
+            )}
             <div className="space-y-1 text-xs text-muted-foreground">
               <p><span className="font-medium">Name:</span> {originalFile.name}</p>
               <p><span className="font-medium">Size:</span> {formatBytes(originalSize)}</p>
@@ -456,6 +571,16 @@ export const VideoPreview = memo(({
                 <FontAwesomeIcon icon={faCompressArrowsAlt} className="w-3 h-3" />
                 Compression Results
               </h4>
+              {/* Compressed Video Thumbnail */}
+              {compressedThumbnail && (
+                <div className="mb-2">
+                  <img 
+                    src={compressedThumbnail} 
+                    alt="Compressed video thumbnail" 
+                    className="w-full h-24 object-cover rounded-lg border border-video-success/20"
+                  />
+                </div>
+              )}
               <div className="space-y-1 text-xs text-muted-foreground">
                 <p><span className="font-medium">New Size:</span> {formatBytes(compressedSize)}</p>
                 <p><span className="font-medium">Saved:</span> {formatBytes(originalSize - compressedSize)}</p>
