@@ -15,7 +15,7 @@ import { addToHistory } from "@/lib/storage";
 import { compressVideo, convertVideoFormat, isFormatConversionSupported, ConversionProgress } from "@/lib/videoProcessor";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFileVideo, faDownload } from "@fortawesome/free-solid-svg-icons";
+import { faFileVideo, faDownload, faFileArchive } from "@fortawesome/free-solid-svg-icons";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -570,6 +570,92 @@ function VideoCompressorContent() {
     }
   }, [compressionJobs, toast]);
 
+  const handleBulkDownloadAsZip = useCallback(async () => {
+    const completedJobs = compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file);
+    
+    if (completedJobs.length === 0) {
+      toast({
+        title: "No Files to Download",
+        description: "No completed compression jobs found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Creating ZIP Archive",
+        description: `Preparing ${completedJobs.length} compressed files for download...`,
+      });
+
+      // Create a ZIP file using JSZip
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      // Add each compressed file to the ZIP
+      completedJobs.forEach((job, index) => {
+        if (!job.outputBlob) return; // Skip if no output blob
+        
+        let filename: string;
+        
+        if (job.outputFileName) {
+          filename = job.outputFileName;
+        } else {
+          const originalName = job.file.name;
+          const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+          let extension = originalName.substring(originalName.lastIndexOf('.'));
+          
+          // Ensure proper extension
+          if (job.outputBlob.type) {
+            if (job.outputBlob.type.includes('mp4')) {
+              extension = '.mp4';
+            } else if (job.outputBlob.type.includes('webm')) {
+              extension = '.webm';
+            } else if (job.outputBlob.type.includes('avi')) {
+              extension = '.avi';
+            } else if (job.outputBlob.type.includes('mov')) {
+              extension = '.mov';
+            }
+          }
+          
+          filename = `${nameWithoutExt}_compressed${extension}`;
+        }
+        
+        zip.file(filename, job.outputBlob);
+      });
+
+      // Generate the ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Download the ZIP file
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `compressed_videos_${new Date().toISOString().split('T')[0]}.zip`;
+      a.style.display = 'none';
+      
+      try {
+        a.click();
+        toast({
+          title: "ZIP Download Started",
+          description: `Downloading ${completedJobs.length} compressed files as ZIP archive.`,
+        });
+      } finally {
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 100);
+      }
+      
+    } catch (error) {
+      console.error('ZIP creation error:', error);
+      toast({
+        title: "ZIP Creation Failed",
+        description: "Unable to create ZIP archive. Please try individual downloads.",
+        variant: "destructive",
+      });
+    }
+  }, [compressionJobs, toast]);
+
   const handleRetry = useCallback((jobId: string) => {
     const job = compressionJobs.find(j => j.id === jobId);
     if (!job) return;
@@ -839,23 +925,34 @@ function VideoCompressorContent() {
                      <div className="text-sm text-muted-foreground">
                        {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length} compressed files ready for download
                      </div>
-                     <Button
-                       onClick={() => {
-                         const completedJobs = compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file);
-                         completedJobs.forEach(job => {
-                           setTimeout(() => handleDownload(job.id), Math.random() * 1000); // Stagger downloads
-                         });
-                         toast({
-                           title: "Bulk Download Started",
-                           description: `Starting download of ${completedJobs.length} compressed files.`,
-                         });
-                       }}
-                       size="sm"
-                       className="bg-video-success hover:bg-video-success-dark text-white"
-                     >
-                       <FontAwesomeIcon icon={faDownload} className="mr-2" />
-                       Download All ({compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length})
-                     </Button>
+                     <div className="flex gap-2">
+                       <Button
+                         onClick={handleBulkDownloadAsZip}
+                         size="sm"
+                         className="bg-video-success hover:bg-video-success-dark text-white"
+                       >
+                         <FontAwesomeIcon icon={faFileArchive} className="mr-2" />
+                         Download as ZIP ({compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length})
+                       </Button>
+                       
+                       <Button
+                         onClick={() => {
+                           const completedJobs = compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file);
+                           completedJobs.forEach(job => {
+                             setTimeout(() => handleDownload(job.id), Math.random() * 1000); // Stagger downloads
+                           });
+                           toast({
+                             title: "Bulk Download Started",
+                             description: `Starting download of ${completedJobs.length} compressed files.`,
+                           });
+                         }}
+                         size="sm"
+                         variant="outline"
+                       >
+                         <FontAwesomeIcon icon={faDownload} className="mr-2" />
+                         Download Individually
+                       </Button>
+                     </div>
                    </div>
                  </CardContent>
                </Card>
