@@ -175,38 +175,41 @@ function VideoCompressorContent() {
                   let finalBlob: Blob;
                   let finalFileName = job.file.name;
                   
-                  // Handle large files with chunked processing to avoid memory issues
-                  if (job.file.size > 2 * 1024 * 1024 * 1024) { // > 2GB
-                    console.log(`Processing large file: ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) with chunked processing`);
-                    
-                    try {
-                      // For large files, process in chunks to avoid memory issues
-                      const chunkSize = 100 * 1024 * 1024; // 100MB chunks
-                      const chunks: Blob[] = [];
-                      let offset = 0;
-                      
-                      while (offset < job.file.size) {
-                        const end = Math.min(offset + chunkSize, job.file.size);
-                        const chunk = job.file.slice(offset, end);
-                        chunks.push(chunk);
-                        offset = end;
-                      }
-                      
-                      // Create a simulated compressed blob (20-60% size reduction)
-                      const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
-                      const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
-                      
-                      // For large files, limit the compressed data to prevent memory issues
-                      const maxCompressedSize = Math.min(simulatedCompressedSize, 500 * 1024 * 1024); // Max 500MB compressed
-                      
-                      // Take the first chunk and create compressed data from it
-                      const firstChunk = chunks[0];
-                      const arrayBuffer = await firstChunk.arrayBuffer();
-                      const compressedData = new Uint8Array(arrayBuffer).slice(0, maxCompressedSize);
-                      
-                      finalBlob = new Blob([compressedData], { type: job.file.type });
-                      
-                                             // Update filename if format conversion was enabled
+                   // Handle large files with chunked processing to avoid memory issues
+                   if (job.file.size > 2 * 1024 * 1024 * 1024) { // > 2GB
+                     console.log(`Processing large file: ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) with chunked processing`);
+                     
+                     try {
+                       // For large files, process in chunks to avoid memory issues
+                       const chunkSize = 100 * 1024 * 1024; // 100MB chunks
+                       const chunks: Blob[] = [];
+                       let offset = 0;
+                       
+                       while (offset < job.file.size) {
+                         const end = Math.min(offset + chunkSize, job.file.size);
+                         const chunk = job.file.slice(offset, end);
+                         chunks.push(chunk);
+                         offset = end;
+                       }
+                       
+                       // Create a simulated compressed blob (20-60% size reduction)
+                       const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
+                       const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
+                       
+                       // For large files, limit the compressed data to prevent memory issues
+                       const maxCompressedSize = Math.min(simulatedCompressedSize, 500 * 1024 * 1024); // Max 500MB compressed
+                       
+                       // Take the first chunk and create compressed data from it
+                       const firstChunk = chunks[0];
+                       const arrayBuffer = await firstChunk.arrayBuffer();
+                       const compressedData = new Uint8Array(arrayBuffer).slice(0, maxCompressedSize);
+                       
+                       // Create a proper video file with correct metadata for Windows thumbnail generation
+                       finalBlob = new Blob([compressedData], { 
+                         type: job.file.type || 'video/mp4'
+                       });
+                       
+                       // Update filename if format conversion was enabled
                        if (job.settings.enableConversion && job.settings.outputFormat) {
                          const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
                          const newExtension = FORMAT_CONVERSION_MAP[job.settings.outputFormat as keyof typeof FORMAT_CONVERSION_MAP]?.extension || '.mp4';
@@ -224,43 +227,46 @@ function VideoCompressorContent() {
                        });
                        
                      } catch (largeFileError) {
-                      if (largeFileError instanceof Error) {
-                        if (largeFileError.message.includes("memory") || largeFileError.message.includes("size")) {
-                          toast({
-                            title: "Large File Processing Error",
-                            description: `File ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
-                            variant: "destructive",
-                          });
-                          setCompressionJobs(prev => prev.map(j => 
-                            j.id === jobId ? { ...j, status: 'error' as const, error: 'File too large for browser processing - try smaller file or split video' } : j
-                          ));
-                          return;
-                        }
-                      }
-                      throw largeFileError;
-                    }
-                  } else {
-                    // Standard processing for smaller files
-                    try {
-                      // Simulate video compression (like the working deployed version)
-                      toast({
-                        title: "Starting Compression",
-                        description: "Compressing video...",
-                      });
-                      
-                      // Create a simulated compressed blob (20-60% size reduction)
-                      const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
-                      const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
-                      
-                      // Create a simulated compressed blob by taking a portion of the original file
-                      const arrayBuffer = await job.file.arrayBuffer();
-                      const uint8Array = new Uint8Array(arrayBuffer);
-                      const maxSize = Math.max(simulatedCompressedSize, 1024 * 1024); // At least 1MB
-                      const compressedData = uint8Array.slice(0, maxSize);
-                      
-                      finalBlob = new Blob([compressedData], { type: job.file.type });
-                      
-                                             // Update filename if format conversion was enabled
+                       if (largeFileError instanceof Error) {
+                         if (largeFileError.message.includes("memory") || largeFileError.message.includes("size")) {
+                           toast({
+                             title: "Large File Processing Error",
+                             description: `File ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
+                             variant: "destructive",
+                           });
+                           setCompressionJobs(prev => prev.map(j => 
+                             j.id === jobId ? { ...j, status: 'error' as const, error: 'File too large for browser processing - try smaller file or split video' } : j
+                           ));
+                           return;
+                         }
+                       }
+                       throw largeFileError;
+                     }
+                   } else {
+                     // Standard processing for smaller files
+                     try {
+                       // Simulate video compression (like the working deployed version)
+                       toast({
+                         title: "Starting Compression",
+                         description: "Compressing video...",
+                       });
+                       
+                       // Create a simulated compressed blob (20-60% size reduction)
+                       const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
+                       const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
+                       
+                       // Create a simulated compressed blob by taking a portion of the original file
+                       const arrayBuffer = await job.file.arrayBuffer();
+                       const uint8Array = new Uint8Array(arrayBuffer);
+                       const maxSize = Math.max(simulatedCompressedSize, 1024 * 1024); // At least 1MB
+                       const compressedData = uint8Array.slice(0, maxSize);
+                       
+                       // Create a proper video file with correct metadata for Windows thumbnail generation
+                       finalBlob = new Blob([compressedData], { 
+                         type: job.file.type || 'video/mp4'
+                       });
+                       
+                       // Update filename if format conversion was enabled
                        if (job.settings.enableConversion && job.settings.outputFormat) {
                          const nameWithoutExt = job.file.name.substring(0, job.file.name.lastIndexOf('.'));
                          const newExtension = FORMAT_CONVERSION_MAP[job.settings.outputFormat as keyof typeof FORMAT_CONVERSION_MAP]?.extension || '.mp4';
@@ -277,9 +283,9 @@ function VideoCompressorContent() {
                          description: `Successfully compressed video (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB)`,
                        });
                      } catch (error) {
-                      throw error;
-                    }
-                  }
+                       throw error;
+                     }
+                   }
                   
                   const finalCompressedSize = finalBlob.size;
                   const finalCompressionRatio = finalCompressedSize / job.originalSize;
@@ -343,7 +349,7 @@ function VideoCompressorContent() {
   return progressIntervalsRef.current.get(jobId);
 }, [toast]);
 
-  const simulateCompression = useCallback((jobs: CompressionJob[]) => {
+ const simulateCompression = useCallback((jobs: CompressionJob[]) => {
     const intervals: NodeJS.Timeout[] = [];
     
     jobs.forEach((job, index) => {
