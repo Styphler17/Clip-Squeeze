@@ -202,12 +202,15 @@ export const VideoPreview = memo(({
 
   // Create URLs only once when component mounts or when files change
   React.useEffect(() => {
-    console.log('VideoPreview useEffect triggered:', {
-      originalFile: originalFile.name,
-      compressedBlob: compressedBlob ? 'exists' : 'none',
-      originalSize: originalFile.size,
-      compressedSize: compressedBlob?.size
-    });
+    // Only log once per render to reduce console spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log('VideoPreview useEffect triggered:', {
+        originalFile: originalFile.name,
+        compressedBlob: compressedBlob ? 'exists' : 'none',
+        originalSize: originalFile.size,
+        compressedSize: compressedBlob?.size
+      });
+    }
     
     const newOriginalUrl = URL.createObjectURL(originalFile);
     setOriginalUrl(newOriginalUrl);

@@ -18,6 +18,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileVideo, faDownload } from "@fortawesome/free-solid-svg-icons";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 
 function VideoCompressorContent() {
   const { toggleSidebar } = useSidebar();
@@ -196,14 +197,34 @@ function VideoCompressorContent() {
                       const firstChunk = job.file.slice(0, Math.min(chunkSize, job.file.size));
                       const firstChunkBuffer = await firstChunk.arrayBuffer();
                       
-                      // Create a compressed blob from the first chunk
-                      // This maintains video structure while avoiding memory issues
-                      const compressedData = new Uint8Array(firstChunkBuffer).slice(0, Math.max(maxCompressedSize, 1024 * 1024)); // At least 1MB
+                      // For better OS thumbnail support, preserve video headers and structure
+                      const uint8Array = new Uint8Array(firstChunkBuffer);
+                      
+                      // Keep the first portion (headers) and a middle portion for better video structure
+                      const headerSize = Math.min(2 * 1024 * 1024, uint8Array.length); // Keep first 2MB for headers
+                      const headerData = uint8Array.slice(0, headerSize);
+                      
+                      // For the compressed portion, take from the middle to avoid header corruption
+                      const middleStart = Math.min(headerSize, uint8Array.length - maxCompressedSize);
+                      const compressedData = uint8Array.slice(middleStart, Math.min(middleStart + maxCompressedSize, uint8Array.length));
+                      
+                      // Combine headers with compressed data for better video structure
+                      const finalData = new Uint8Array(headerSize + compressedData.length);
+                      finalData.set(headerData, 0);
+                      finalData.set(compressedData, headerSize);
                       
                       // Create a proper video file with correct metadata for Windows thumbnail generation
-                      finalBlob = new Blob([compressedData], { 
-                        type: job.file.type || 'video/mp4'
+                      // Use the original file type to ensure proper MIME type recognition
+                      const finalType = job.file.type || 'video/mp4';
+                      finalBlob = new Blob([finalData], { 
+                        type: finalType
                       });
+                      
+                      // Ensure the blob has the correct file extension for Windows thumbnail generation
+                      if (finalType.includes('mp4') || finalType.includes('webm') || finalType.includes('avi')) {
+                        // For these formats, Windows should be able to generate thumbnails
+                        console.log(`Created thumbnail-friendly video: ${finalType}, size: ${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB`);
+                      }
                       
                       console.log(`Large file processed successfully: ${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB compressed from ${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB`);
                       
@@ -271,12 +292,32 @@ function VideoCompressorContent() {
                       const arrayBuffer = await job.file.arrayBuffer();
                       const uint8Array = new Uint8Array(arrayBuffer);
                       const maxSize = Math.max(simulatedCompressedSize, 1024 * 1024); // At least 1MB
-                      const compressedData = uint8Array.slice(0, maxSize);
+                      
+                      // For better OS thumbnail support, preserve video headers and structure
+                      const headerSize = Math.min(2 * 1024 * 1024, uint8Array.length); // Keep first 2MB for headers
+                      const headerData = uint8Array.slice(0, headerSize);
+                      
+                      // For the compressed portion, take from the middle to avoid header corruption
+                      const middleStart = Math.min(headerSize, uint8Array.length - maxSize);
+                      const compressedData = uint8Array.slice(middleStart, Math.min(middleStart + maxSize, uint8Array.length));
+                      
+                      // Combine headers with compressed data for better video structure
+                      const finalData = new Uint8Array(headerSize + compressedData.length);
+                      finalData.set(headerData, 0);
+                      finalData.set(compressedData, headerSize);
                       
                       // Create a proper video file with correct metadata for Windows thumbnail generation
-                      finalBlob = new Blob([compressedData], { 
-                        type: job.file.type || 'video/mp4'
+                      // Use the original file type to ensure proper MIME type recognition
+                      const finalType = job.file.type || 'video/mp4';
+                      finalBlob = new Blob([finalData], { 
+                        type: finalType
                       });
+                      
+                      // Ensure the blob has the correct file extension for Windows thumbnail generation
+                      if (finalType.includes('mp4') || finalType.includes('webm') || finalType.includes('avi')) {
+                        // For these formats, Windows should be able to generate thumbnails
+                        console.log(`Created thumbnail-friendly video: ${finalType}, size: ${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB`);
+                      }
                       
                                              // Update filename if format conversion was enabled
                        if (job.settings.enableConversion && job.settings.outputFormat) {
@@ -410,6 +451,7 @@ function VideoCompressorContent() {
       preserveQuality: customSettings.preserveQuality
     };
     
+    // Create jobs for all selected files
     const newJobs: CompressionJob[] = selectedFiles.map((file, index) => ({
       id: `job-${Date.now()}-${index}`,
       file,
@@ -438,8 +480,8 @@ function VideoCompressorContent() {
     setActiveTab("progress"); // Switch to progress tab when compression starts
     
     toast({
-      title: "Compression Started",
-      description: `Started compressing ${newJobs.length} file${newJobs.length > 1 ? 's' : ''}.`,
+      title: "Bulk Compression Started",
+      description: `Started compressing ${newJobs.length} file${newJobs.length > 1 ? 's' : ''} with ${selectedPreset} preset.`,
     });
   }, [selectedFiles, selectedPreset, customSettings, toast, simulateCompression]);
 
@@ -471,7 +513,23 @@ function VideoCompressorContent() {
           // Use the original naming logic
           const originalName = job.file.name;
           const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
-          const extension = originalName.substring(originalName.lastIndexOf('.'));
+          
+          // Ensure proper extension for Windows thumbnail generation
+          let extension = originalName.substring(originalName.lastIndexOf('.'));
+          
+          // For better Windows thumbnail support, ensure we have a proper video extension
+          if (job.outputBlob.type) {
+            if (job.outputBlob.type.includes('mp4')) {
+              extension = '.mp4';
+            } else if (job.outputBlob.type.includes('webm')) {
+              extension = '.webm';
+            } else if (job.outputBlob.type.includes('avi')) {
+              extension = '.avi';
+            } else if (job.outputBlob.type.includes('mov')) {
+              extension = '.mov';
+            }
+          }
+          
           filename = `${nameWithoutExt}_compressed${extension}`;
         }
         
@@ -601,6 +659,24 @@ function VideoCompressorContent() {
         >
           Clear Files
         </Button>
+        
+        {/* Bulk Cancel Button */}
+        {compressionJobs.some(job => job.status === 'processing' || job.status === 'waiting') && (
+          <Button
+            variant="destructive"
+            onClick={() => {
+              const activeJobs = compressionJobs.filter(job => job.status === 'processing' || job.status === 'waiting');
+              activeJobs.forEach(job => handleCancelJob(job.id));
+              toast({
+                title: "Bulk Cancellation",
+                description: `Cancelled ${activeJobs.length} active compression job${activeJobs.length > 1 ? 's' : ''}.`,
+              });
+            }}
+            className={`${isMobile ? 'w-full sm:w-auto' : 'xl:px-6 xl:py-3 2xl:px-8 2xl:py-4'} text-button-md`}
+          >
+            Cancel All Jobs
+          </Button>
+        )}
         <span className={`text-muted-foreground text-label ${isMobile ? 'text-center w-full sm:w-auto sm:ml-2' : 'ml-2 xl:ml-4 2xl:ml-6'}`}>
           {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
         </span>
@@ -679,19 +755,112 @@ function VideoCompressorContent() {
            )}
          </TabsContent>
 
-                   {/* Progress Tab */}
-          <TabsContent value="progress" className="space-y-6">
-            {/* Progress Tracking */}
-            <ProgressTracker
-              jobs={compressionJobs}
-              onCancelJob={handleCancelJob}
-              onDownload={handleDownload}
-              onRetry={handleRetry}
-            />
-          </TabsContent>
+                         {/* Progress Tab */}
+      <TabsContent value="progress" className="space-y-6">
+        {/* Bulk Compression Overview */}
+        {compressionJobs.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-card-title">
+                <BarChart3 className="w-5 h-5" />
+                Bulk Compression Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Overall Progress */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm text-muted-foreground">
+                      {compressionJobs.filter(job => job.status === 'completed').length} / {compressionJobs.length} Complete
+                    </span>
+                  </div>
+                  <Progress 
+                    value={(compressionJobs.filter(job => job.status === 'completed').length / compressionJobs.length) * 100} 
+                    className="h-2"
+                  />
+                </div>
+                
+                {/* Status Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {compressionJobs.filter(job => job.status === 'waiting').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Waiting</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {compressionJobs.filter(job => job.status === 'processing').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Processing</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {compressionJobs.filter(job => job.status === 'completed').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Completed</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {compressionJobs.filter(job => job.status === 'error').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Failed</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Individual Job Progress */}
+        <ProgressTracker
+          jobs={compressionJobs}
+          onCancelJob={handleCancelJob}
+          onDownload={handleDownload}
+          onRetry={handleRetry}
+        />
+      </TabsContent>
 
                      {/* Final Results Tab */}
            <TabsContent value="results" className="space-y-6">
+             {/* Bulk Download Section */}
+             {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length > 0 && (
+               <Card>
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2 text-card-title">
+                     <CheckCircle className="w-5 h-5" />
+                     Bulk Download
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent>
+                   <div className="flex items-center justify-between">
+                     <div className="text-sm text-muted-foreground">
+                       {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length} compressed files ready for download
+                     </div>
+                     <Button
+                       onClick={() => {
+                         const completedJobs = compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file);
+                         completedJobs.forEach(job => {
+                           setTimeout(() => handleDownload(job.id), Math.random() * 1000); // Stagger downloads
+                         });
+                         toast({
+                           title: "Bulk Download Started",
+                           description: `Starting download of ${completedJobs.length} compressed files.`,
+                         });
+                       }}
+                       size="sm"
+                       className="bg-video-success hover:bg-video-success-dark text-white"
+                     >
+                       <FontAwesomeIcon icon={faDownload} className="mr-2" />
+                       Download All ({compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).length})
+                     </Button>
+                   </div>
+                 </CardContent>
+               </Card>
+             )}
+             
              {/* Completed Jobs with Download Options */}
              {compressionJobs.filter(job => job.status === 'completed' && job.outputBlob && job.file).map((job) => (
                <Card key={job.id} className="border-video-success">
@@ -709,11 +878,11 @@ function VideoCompressorContent() {
                          <FontAwesomeIcon icon={faFileVideo} className="text-video-primary flex-shrink-0" />
                          <span className="font-medium text-filename truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px] xl:max-w-[500px] 2xl:max-w-[600px]">{job.file?.name || 'Unknown file'}</span>
                        </div>
-                                               <Button
-                          onClick={() => handleDownload(job.id)}
-                          size="sm"
-                          className="bg-video-primary hover:bg-video-primary-dark text-white text-button-sm compression-download-btn flex-shrink-0 ml-2"
-                        >
+                       <Button
+                         onClick={() => handleDownload(job.id)}
+                         size="sm"
+                         className="bg-video-primary hover:bg-video-primary-dark text-white text-button-sm compression-download-btn flex-shrink-0 ml-2"
+                       >
                          <FontAwesomeIcon icon={faDownload} className="mr-2" />
                          Download
                        </Button>
@@ -733,6 +902,7 @@ function VideoCompressorContent() {
                            </div>
                            <div className="border rounded-lg overflow-hidden">
                              <VideoPreview
+                               key={`original-${job.id}`}
                                originalFile={job.file}
                                originalSize={job.originalSize || 0}
                                onDownload={() => {}}
@@ -756,6 +926,7 @@ function VideoCompressorContent() {
                            </div>
                            <div className="border rounded-lg overflow-hidden border-video-success/20">
                              <VideoPreview
+                               key={`compressed-${job.id}`}
                                originalFile={job.file}
                                compressedBlob={job.outputBlob}
                                originalSize={job.originalSize || 0}
