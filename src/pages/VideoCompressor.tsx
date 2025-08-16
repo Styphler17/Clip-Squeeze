@@ -213,19 +213,8 @@ function VideoCompressorContent() {
                     
                   } catch (error) {
                     if (error instanceof Error) {
-                      // Check for large file processing issues first
-                      if (job.file && job.file.size > 2 * 1024 * 1024 * 1024) { // > 2GB
-                        const sizeGB = (job.file.size / (1024 * 1024 * 1024)).toFixed(1);
-                        toast({
-                          title: "Large File Processing Error",
-                          description: `File ${job.file.name} (${sizeGB}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
-                          variant: "destructive",
-                        });
-                        setCompressionJobs(prev => prev.map(j => 
-                          j.id === jobId ? { ...j, status: 'error' as const, error: `File too large (${sizeGB}GB) - try smaller file or split video` } : j
-                        ));
-                        return;
-                      } else if (error.name === "NotReadableError") {
+                      // Large file size restriction removed - allow unlimited file sizes
+                      if (error.name === "NotReadableError") {
                         toast({
                           title: "File Read Error",
                           description: "The selected file could not be read. This may be due to file corruption or unsupported format. Please try a different file.",
@@ -799,7 +788,7 @@ export default function VideoCompressor() {
       <VideoCompressorSEO />
       <div className="flex min-h-screen w-full bg-background">
         <VideoCompressorSidebar />
-        <main className="flex-1 overflow-hidden ml-0 lg:ml-64 xl:ml-72 2xl:ml-80">
+                 <main className="flex-1 overflow-hidden ml-0 lg:ml-64 xl:ml-64 2xl:ml-64">
           <VideoCompressorContent />
         </main>
       </div>
