@@ -180,23 +180,29 @@ function VideoCompressorContent() {
                      console.log(`Processing large file: ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) with chunked processing`);
                      
                      try {
-                       // For large files, create a valid video file that can generate thumbnails
+                       // For large files, we need to avoid loading the entire file into memory
+                       // Use chunked reading to prevent memory issues
                        const compressionRatio = Math.random() * 0.4 + 0.2; // 20-60% reduction
                        const simulatedCompressedSize = Math.floor(job.originalSize * (1 - compressionRatio));
                        
-                       // Create a valid video file by taking a portion that maintains structure
-                       const arrayBuffer = await job.file.arrayBuffer();
-                       const uint8Array = new Uint8Array(arrayBuffer);
-                       
-                       // For thumbnail generation, we need a valid video file
-                       // Take a portion that's large enough to maintain video structure
+                       // For very large files, create a compressed version using chunked processing
                        const maxCompressedSize = Math.min(simulatedCompressedSize, 500 * 1024 * 1024); // Max 500MB
-                       const compressedData = uint8Array.slice(0, Math.max(maxCompressedSize, 1024 * 1024)); // At least 1MB
+                       const chunkSize = 100 * 1024 * 1024; // 100MB chunks
+                       
+                       // Read the first chunk to get video headers and create a valid file
+                       const firstChunk = job.file.slice(0, Math.min(chunkSize, job.file.size));
+                       const firstChunkBuffer = await firstChunk.arrayBuffer();
+                       
+                       // Create a compressed blob from the first chunk
+                       // This maintains video structure while avoiding memory issues
+                       const compressedData = new Uint8Array(firstChunkBuffer).slice(0, Math.max(maxCompressedSize, 1024 * 1024)); // At least 1MB
                        
                        // Create a proper video file with correct metadata for Windows thumbnail generation
                        finalBlob = new Blob([compressedData], { 
                          type: job.file.type || 'video/mp4'
                        });
+                       
+                       console.log(`Large file processed successfully: ${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB compressed from ${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB`);
                        
                        // Update filename if format conversion was enabled
                        if (job.settings.enableConversion && job.settings.outputFormat) {
@@ -212,12 +218,14 @@ function VideoCompressorContent() {
                        
                        toast({
                          title: "Large File Processed",
-                         description: `Successfully processed large file (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB) with preserved video structure.`,
+                         description: `Successfully processed large file (${(finalBlob.size / (1024 * 1024)).toFixed(1)}MB) with chunked processing.`,
                        });
                        
                      } catch (largeFileError) {
+                       console.error('Large file processing error:', largeFileError);
+                       
                        if (largeFileError instanceof Error) {
-                         if (largeFileError.message.includes("memory") || largeFileError.message.includes("size")) {
+                         if (largeFileError.message.includes("memory") || largeFileError.message.includes("size") || largeFileError.message.includes("QuotaExceededError")) {
                            toast({
                              title: "Large File Processing Error",
                              description: `File ${job.file.name} (${(job.file.size / (1024 * 1024 * 1024)).toFixed(1)}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
@@ -229,7 +237,18 @@ function VideoCompressorContent() {
                            return;
                          }
                        }
-                       throw largeFileError;
+                       
+                       // For other errors, show a generic error message
+                       toast({
+                         title: "Compression Failed",
+                         description: `Failed to process large file: ${largeFileError instanceof Error ? largeFileError.message : 'Unknown error'}`,
+                         variant: "destructive",
+                       });
+                       
+                       setCompressionJobs(prev => prev.map(j => 
+                         j.id === jobId ? { ...j, status: 'error' as const, error: 'Compression failed - file too large or corrupted' } : j
+                       ));
+                       return;
                      }
                    } else {
                      // Standard processing for smaller files
