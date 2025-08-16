@@ -137,23 +137,15 @@ function VideoCompressorContent() {
     });
   }, [toast, isMobile]);
 
-  const startJobProcessing = useCallback(async (jobId: string) => {
+  const startJobProcessing = useCallback(async (jobId: string, jobData?: CompressionJob) => {
     console.log(`startJobProcessing called for jobId: ${jobId}`);
     
-    // Get the current job to avoid stale closure issues
-    let currentJob = compressionJobs.find(j => j.id === jobId);
-    console.log(`Found job:`, currentJob);
-    
-    // If job not found, wait a bit for state to update
-    if (!currentJob || !currentJob.file) {
-      console.log(`Job not found immediately, waiting for state update...`);
-      await new Promise(resolve => setTimeout(resolve, 100));
-      currentJob = compressionJobs.find(j => j.id === jobId);
-      console.log(`Found job after wait:`, currentJob);
-    }
+    // Use the passed job data if available, otherwise try to find it in state
+    let currentJob = jobData || compressionJobs.find(j => j.id === jobId);
+    console.log(`Using job data:`, currentJob);
     
     if (!currentJob || !currentJob.file) {
-      console.error('Job or file not found after waiting:', jobId);
+      console.error('Job or file not found:', jobId);
       return;
     }
     
@@ -375,7 +367,7 @@ function VideoCompressorContent() {
       
       const interval = setTimeout(() => {
         console.log(`Starting compression for job: ${job.id} (${job.file.name})`);
-        startJobProcessing(job.id).then(intervalId => {
+        startJobProcessing(job.id, job).then(intervalId => {
           if (intervalId) {
             intervals.push(intervalId);
           }
