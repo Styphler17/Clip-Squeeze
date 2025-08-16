@@ -141,11 +141,19 @@ function VideoCompressorContent() {
     console.log(`startJobProcessing called for jobId: ${jobId}`);
     
     // Get the current job to avoid stale closure issues
-    const currentJob = compressionJobs.find(j => j.id === jobId);
+    let currentJob = compressionJobs.find(j => j.id === jobId);
     console.log(`Found job:`, currentJob);
     
+    // If job not found, wait a bit for state to update
     if (!currentJob || !currentJob.file) {
-      console.error('Job or file not found:', jobId);
+      console.log(`Job not found immediately, waiting for state update...`);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      currentJob = compressionJobs.find(j => j.id === jobId);
+      console.log(`Found job after wait:`, currentJob);
+    }
+    
+    if (!currentJob || !currentJob.file) {
+      console.error('Job or file not found after waiting:', jobId);
       return;
     }
     
@@ -425,15 +433,17 @@ function VideoCompressorContent() {
       }
     }));
     
-    setCompressionJobs(prev => [...prev, ...newJobs]);
+    setCompressionJobs(prev => {
+      const updatedJobs = [...prev, ...newJobs];
+      // Start compression after state is updated
+      setTimeout(() => {
+        simulateCompression(newJobs);
+      }, 0);
+      return updatedJobs;
+    });
     setSelectedFiles([]);
     setIsProcessing(true);
     setActiveTab("progress"); // Switch to progress tab when compression starts
-    
-    // Use setTimeout to ensure state is updated before starting compression
-    setTimeout(() => {
-      simulateCompression(newJobs);
-    }, 0);
     
     toast({
       title: "Compression Started",
