@@ -80,14 +80,33 @@ export const VideoPreview = memo(({
       const video = document.createElement('video');
       video.muted = true;
       video.crossOrigin = 'anonymous';
+      video.preload = 'metadata';
+      
+      // Set a timeout for thumbnail generation
+      const timeoutId = setTimeout(() => {
+        console.warn('Thumbnail generation timed out, using fallback');
+        if (isCompressed) {
+          setCompressedThumbnail('/placeholder.svg'); // Fallback to placeholder
+        } else {
+          setOriginalThumbnail('/placeholder.svg');
+        }
+        resolve('/placeholder.svg');
+      }, 10000); // 10 second timeout
       
       video.onloadeddata = () => {
         try {
+          clearTimeout(timeoutId);
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
           if (!ctx) {
-            resolve('');
+            console.warn('Canvas context not available, using fallback');
+            if (isCompressed) {
+              setCompressedThumbnail('/placeholder.svg');
+            } else {
+              setOriginalThumbnail('/placeholder.svg');
+            }
+            resolve('/placeholder.svg');
             return;
           }
           
@@ -109,14 +128,28 @@ export const VideoPreview = memo(({
           
           resolve(thumbnailUrl);
         } catch (error) {
+          clearTimeout(timeoutId);
           console.warn('Thumbnail generation failed:', error);
-          resolve('');
+          // Use fallback thumbnail
+          if (isCompressed) {
+            setCompressedThumbnail('/placeholder.svg');
+          } else {
+            setOriginalThumbnail('/placeholder.svg');
+          }
+          resolve('/placeholder.svg');
         }
       };
       
       video.onerror = () => {
-        console.warn('Video load failed for thumbnail generation');
-        resolve('');
+        clearTimeout(timeoutId);
+        console.warn('Video load failed for thumbnail generation, using fallback');
+        // Use fallback thumbnail
+        if (isCompressed) {
+          setCompressedThumbnail('/placeholder.svg');
+        } else {
+          setOriginalThumbnail('/placeholder.svg');
+        }
+        resolve('/placeholder.svg');
       };
       
       // Set video source
@@ -181,7 +214,41 @@ export const VideoPreview = memo(({
     // Generate thumbnails
     generateThumbnail(originalFile, false);
     if (compressedBlob) {
-      generateThumbnail(compressedBlob, true);
+      // Try to generate thumbnail from compressed blob
+      generateThumbnail(compressedBlob, true).catch(() => {
+        // If compressed blob thumbnail generation fails, try to create a fallback
+        console.log('Compressed blob thumbnail generation failed, creating fallback');
+        // Create a simple fallback thumbnail using canvas
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 320;
+          canvas.height = 180;
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+            // Create a simple gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 320, 180);
+            gradient.addColorStop(0, '#3b82f6');
+            gradient.addColorStop(1, '#1d4ed8');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 320, 180);
+            
+            // Add text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Compressed', 160, 90);
+            ctx.font = '16px Arial';
+            ctx.fillText('Video', 160, 120);
+            
+            const fallbackThumbnail = canvas.toDataURL('image/jpeg', 0.8);
+            setCompressedThumbnail(fallbackThumbnail);
+          }
+        } catch (error) {
+          console.warn('Fallback thumbnail creation failed:', error);
+          setCompressedThumbnail('/placeholder.svg');
+        }
+      });
     }
 
     // Cleanup URLs when component unmounts or when files change
@@ -370,18 +437,24 @@ export const VideoPreview = memo(({
                 <div className="loading-spinner mb-4" />
                 <p className="text-sm text-muted-foreground">Loading video...</p>
                 {/* Show thumbnail while loading */}
-                {currentVideo === 'original' && originalThumbnail && (
+                {currentVideo === 'original' && (originalThumbnail || '/placeholder.svg') && (
                   <img 
-                    src={originalThumbnail} 
+                    src={originalThumbnail || '/placeholder.svg'} 
                     alt="Video thumbnail" 
                     className="w-full h-32 object-cover rounded-lg mt-2"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
                   />
                 )}
-                {currentVideo === 'compressed' && compressedThumbnail && (
+                {currentVideo === 'compressed' && (compressedThumbnail || '/placeholder.svg') && (
                   <img 
-                    src={compressedThumbnail} 
+                    src={compressedThumbnail || '/placeholder.svg'} 
                     alt="Compressed video thumbnail" 
                     className="w-full h-32 object-cover rounded-lg mt-2"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
                   />
                 )}
               </div>
@@ -398,18 +471,24 @@ export const VideoPreview = memo(({
                 />
                 <p className="text-sm text-destructive">Failed to load video</p>
                 {/* Show thumbnail on error */}
-                {currentVideo === 'original' && originalThumbnail && (
+                {currentVideo === 'original' && (originalThumbnail || '/placeholder.svg') && (
                   <img 
-                    src={originalThumbnail} 
+                    src={originalThumbnail || '/placeholder.svg'} 
                     alt="Video thumbnail" 
                     className="w-full h-32 object-cover rounded-lg mt-2"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
                   />
                 )}
-                {currentVideo === 'compressed' && compressedThumbnail && (
+                {currentVideo === 'compressed' && (compressedThumbnail || '/placeholder.svg') && (
                   <img 
-                    src={compressedThumbnail} 
+                    src={compressedThumbnail || '/placeholder.svg'} 
                     alt="Compressed video thumbnail" 
                     className="w-full h-32 object-cover rounded-lg mt-2"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
                   />
                 )}
               </div>
@@ -549,12 +628,15 @@ export const VideoPreview = memo(({
               File Details
             </h4>
             {/* Original Video Thumbnail */}
-            {originalThumbnail && (
+            {(originalThumbnail || '/placeholder.svg') && (
               <div className="mb-2">
                 <img 
-                  src={originalThumbnail} 
+                  src={originalThumbnail || '/placeholder.svg'} 
                   alt="Original video thumbnail" 
                   className="w-full h-24 object-cover rounded-lg border"
+                  onError={(e) => {
+                    e.currentTarget.src = '/placeholder.svg';
+                  }}
                 />
               </div>
             )}
@@ -572,12 +654,15 @@ export const VideoPreview = memo(({
                 Compression Results
               </h4>
               {/* Compressed Video Thumbnail */}
-              {compressedThumbnail && (
+              {(compressedThumbnail || '/placeholder.svg') && (
                 <div className="mb-2">
                   <img 
-                    src={compressedThumbnail} 
+                    src={compressedThumbnail || '/placeholder.svg'} 
                     alt="Compressed video thumbnail" 
                     className="w-full h-24 object-cover rounded-lg border border-video-success/20"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
                   />
                 </div>
               )}
