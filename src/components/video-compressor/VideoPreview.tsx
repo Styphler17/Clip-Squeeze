@@ -74,6 +74,63 @@ export const VideoPreview = memo(({
     setIsPiPSupported(checkPiPSupport());
   }, []);
 
+  // Generate thumbnail from video file
+  const generateThumbnail = useCallback((file: File | Blob, isCompressed: boolean = false): Promise<string> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.crossOrigin = 'anonymous';
+      
+      video.onloadeddata = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            resolve('');
+            return;
+          }
+          
+          // Set canvas size for thumbnail
+          canvas.width = 320;
+          canvas.height = 180;
+          
+          // Draw video frame to canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert to data URL
+          const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+          
+          if (isCompressed) {
+            setCompressedThumbnail(thumbnailUrl);
+          } else {
+            setOriginalThumbnail(thumbnailUrl);
+          }
+          
+          resolve(thumbnailUrl);
+        } catch (error) {
+          console.warn('Thumbnail generation failed:', error);
+          resolve('');
+        }
+      };
+      
+      video.onerror = () => {
+        console.warn('Video load failed for thumbnail generation');
+        resolve('');
+      };
+      
+      // Set video source
+      if (file instanceof File) {
+        video.src = URL.createObjectURL(file);
+      } else {
+        video.src = URL.createObjectURL(file);
+      }
+      
+      // Load video
+      video.load();
+    });
+  }, []);
+
   const handlePictureInPicture = useCallback(async () => {
     if (!videoRef.current || typeof document === 'undefined') return;
     
@@ -263,63 +320,6 @@ export const VideoPreview = memo(({
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
-  // Generate thumbnail from video file
-  const generateThumbnail = useCallback((file: File | Blob, isCompressed: boolean = false): Promise<string> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.muted = true;
-      video.crossOrigin = 'anonymous';
-      
-      video.onloadeddata = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          if (!ctx) {
-            resolve('');
-            return;
-          }
-          
-          // Set canvas size for thumbnail
-          canvas.width = 320;
-          canvas.height = 180;
-          
-          // Draw video frame to canvas
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          // Convert to data URL
-          const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
-          
-          if (isCompressed) {
-            setCompressedThumbnail(thumbnailUrl);
-          } else {
-            setOriginalThumbnail(thumbnailUrl);
-          }
-          
-          resolve(thumbnailUrl);
-        } catch (error) {
-          console.warn('Thumbnail generation failed:', error);
-          resolve('');
-        }
-      };
-      
-      video.onerror = () => {
-        console.warn('Video load failed for thumbnail generation');
-        resolve('');
-      };
-      
-      // Set video source
-      if (file instanceof File) {
-        video.src = URL.createObjectURL(file);
-      } else {
-        video.src = URL.createObjectURL(file);
-      }
-      
-      // Load video
-      video.load();
-    });
-  }, []);
 
   const getCompressionRatio = () => {
     if (!compressedSize) return null;
