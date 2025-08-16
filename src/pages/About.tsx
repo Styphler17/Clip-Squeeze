@@ -57,7 +57,7 @@ const supportedFormats = [
 
 const stats = [
   { label: "Supported Formats", value: "15+" },
-  { label: "Max File Size", value: "10GB" },
+  { label: "Max File Size", value: "Unlimited" },
   { label: "Compression Presets", value: "6" },
   { label: "Privacy Level", value: "100%" }
 ];

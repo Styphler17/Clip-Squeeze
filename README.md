@@ -15,7 +15,7 @@ This software is protected by copyright laws and international treaties. Unautho
 - **100% Private & Secure**: All processing happens locally in your browser
 - **Lightning Fast**: Powered by WebAssembly and FFmpeg for efficient compression
 - **Works Everywhere**: No installation required, works on any modern browser
-- **Smart File Limits**: Process files up to 10GB, with automatic MP4 conversion for large non-MP4 files
+- **Smart File Limits**: Process files of any size, with automatic MP4 conversion for large non-MP4 files
 - **Multiple Presets**: Choose from optimized compression presets or customize settings
 - **Format Conversion**: Convert between different video formats (MP4, WebM, AVI, MOV, etc.)
 - **Real-time Progress**: Track compression and conversion progress in real-time
@@ -78,7 +78,7 @@ This project is built with:
 
 - **Input Formats**: MP4, AVI, MOV, MKV, WMV, FLV, WebM, 3GP, OGV, M4V, QT
 - **Output Formats**: MP4, WebM, AVI, MOV
-- **File Size**: Up to 10GB per file
+- **File Size**: Unlimited file size support
 - **Batch Processing**: Up to 10 files simultaneously
 
 ## 💻 Development

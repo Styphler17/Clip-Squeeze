@@ -17,7 +17,7 @@ interface DropZoneProps {
 export const DropZone = memo(({ 
   onFilesSelected, 
   maxFiles = 10, 
-  maxFileSize = 10 * 1024 * 1024 * 1024, // 10GB
+  maxFileSize = Number.MAX_SAFE_INTEGER, // Unlimited file size
   disabled = false,
   className 
 }: DropZoneProps) => {
@@ -70,12 +70,18 @@ export const DropZone = memo(({
           }
         }
 
-        // Check file size
-        if (file.size > maxFileSize) {
+        // Check file size - now unlimited but with warning for very large files
+        if (file.size > 2 * 1024 * 1024 * 1024) { // Warning for files > 2GB
           const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(1);
-          newErrors.push(`${file.name}: File too large (${sizeGB}GB > 10GB)`);
-          continue;
+          console.warn(`Large file detected: ${file.name} (${sizeGB}GB) - Processing may take longer and require more memory`);
         }
+        
+        // Remove the hard file size limit check
+        // if (file.size > maxFileSize) {
+        //   const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(1);
+        //   newErrors.push(`${file.name}: File too large (${sizeGB}GB > 10GB)`);
+        //   continue;
+        // }
 
         // Check for empty files
         if (file.size === 0) {
@@ -344,7 +350,7 @@ export const DropZone = memo(({
 
             {/* File Limits */}
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>Maximum file size: {formatFileSize(maxFileSize)}</p>
+              <p>Maximum file size: Unlimited</p>
               <p>Maximum files: {maxFiles}</p>
             </div>
           </div>

@@ -13,7 +13,7 @@ const compressionSteps = [
     title: "Upload Your Video",
     description: "Use the Upload tab to drag and drop your video files or click to browse. Supports MP4, AVI, MOV, MKV, and more.",
     icon: Upload,
-    tips: ["Files up to 10GB are supported", "Multiple files can be processed at once", "Preview your videos before compression", "All processing happens locally in your browser"]
+    tips: ["Files of any size are supported", "Multiple files can be processed at once", "Preview your videos before compression", "All processing happens locally in your browser"]
   },
   {
     step: 2,
@@ -400,7 +400,7 @@ function HowToUseContent() {
               <div>
                 <h3 className="font-semibold mb-3">File Size Limits</h3>
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>• Up to 10GB per file</p>
+                  <p>• Unlimited file size support</p>
                   <p>• Multiple files can be processed</p>
                   <p>• Fast processing with WebAssembly</p>
                 </div>

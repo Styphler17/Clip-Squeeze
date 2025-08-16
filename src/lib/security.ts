@@ -61,7 +61,7 @@ export function validateFileSize(size: number, maxSize: number): boolean {
   }
 
   // Prevent extremely large files that could cause memory issues
-  const MAX_SAFE_SIZE = 10 * 1024 * 1024 * 1024; // 10GB
+  const MAX_SAFE_SIZE = Number.MAX_SAFE_INTEGER; // Unlimited file size
   if (size > MAX_SAFE_SIZE) {
     return false;
   }

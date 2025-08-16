@@ -94,8 +94,8 @@ export const COMPRESSION_PRESETS: CompressionPreset[] = [
 
 // File size constants
 export const FILE_SIZE_LIMITS = {
-  MAX_FILE_SIZE: 10 * 1024 * 1024 * 1024, // 10GB
-  MAX_SAFE_SIZE: 10 * 1024 * 1024 * 1024, // 10GB
+  MAX_FILE_SIZE: Number.MAX_SAFE_INTEGER, // Unlimited file size
+  MAX_SAFE_SIZE: Number.MAX_SAFE_INTEGER, // Unlimited file size
   MAX_FILES: 10
 } as const;
 

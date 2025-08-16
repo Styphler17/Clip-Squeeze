@@ -96,6 +96,21 @@ function VideoCompressorContent() {
       return !isMP4 && file.size > 2 * 1024 * 1024 * 1024; // 2GB
     });
 
+    // Check for very large files and warn users
+    const largeFiles = files.filter(file => file.size > 2 * 1024 * 1024 * 1024); // > 2GB
+    if (largeFiles.length > 0) {
+      const largeFileNames = largeFiles.map(f => f.name).join(', ');
+      const maxSizeGB = Math.max(...largeFiles.map(f => f.size)) / (1024 * 1024 * 1024);
+      
+      toast({
+        title: "Large Files Detected",
+        description: `Large files detected (up to ${maxSizeGB.toFixed(1)}GB). Processing may take longer and require more memory.`,
+        variant: "default",
+      });
+      
+      console.warn(`Large files detected: ${largeFileNames} - Processing may be slower`);
+    }
+
     if (needsConversion) {
       // Automatically enable format conversion for large non-MP4 files
       setCustomSettings(prev => ({
@@ -198,7 +213,19 @@ function VideoCompressorContent() {
                     
                   } catch (error) {
                     if (error instanceof Error) {
-                      if (error.name === "NotReadableError") {
+                      // Check for large file processing issues first
+                      if (job.file && job.file.size > 2 * 1024 * 1024 * 1024) { // > 2GB
+                        const sizeGB = (job.file.size / (1024 * 1024 * 1024)).toFixed(1);
+                        toast({
+                          title: "Large File Processing Error",
+                          description: `File ${job.file.name} (${sizeGB}GB) is too large for browser processing. Try using a smaller file or split the video into smaller parts.`,
+                          variant: "destructive",
+                        });
+                        setCompressionJobs(prev => prev.map(j => 
+                          j.id === jobId ? { ...j, status: 'error' as const, error: `File too large (${sizeGB}GB) - try smaller file or split video` } : j
+                        ));
+                        return;
+                      } else if (error.name === "NotReadableError") {
                         toast({
                           title: "File Read Error",
                           description: "The selected file could not be read. This may be due to file corruption or unsupported format. Please try a different file.",
