@@ -107,14 +107,27 @@ export const compressVideo = async (
     
     // Convert to blob
     console.log('Creating output blob...');
-    const outputBlob = new Blob([data], { 
-      type: getMimeType(outputFormat) 
+    const outputBlob = new Blob([data], {
+      type: getMimeType(outputFormat)
     });
     console.log('Output blob created, size:', outputBlob.size);
-    
+
+    // Ensure compression actually reduced file size
+    if (outputBlob.size >= inputBlob.size) {
+      console.warn(
+        `Compressed file is larger than original. ` +
+        `Returning original file instead of expanded output.`
+      );
+      onProgress?.({
+        progress: 100,
+        message: 'Compression skipped: output larger than original file.'
+      });
+      return inputBlob;
+    }
+
     onProgress?.({ progress: 100, message: 'Compression successful!' });
     console.log('Compression completed successfully!');
-    
+
     return outputBlob;
   } catch (error) {
     console.error('Video compression failed:', error);
