@@ -18,6 +18,7 @@ This software is protected by copyright laws and international treaties. Unautho
 - **Smart File Limits**: Process files of any size, with automatic MP4 conversion for large non-MP4 files
 - **Multiple Presets**: Choose from optimized compression presets or customize settings
 - **Format Conversion**: Convert between different video formats (MP4, WebM, AVI, MOV, etc.)
+- **Size Safety**: Automatically keeps the original file if compression would increase size
 - **Real-time Progress**: Track compression and conversion progress in real-time
 - **Batch Processing**: Handle multiple files simultaneously
 
